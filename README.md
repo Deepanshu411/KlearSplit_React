@@ -1,4 +1,4 @@
-# KlearSplit
+# KlearSplit_React
 
 **KlearSplit** is a web application that consists of a client built with React and a server built with Node.js, Express, and Sequelize (for database handling). The application uses JWT-based authentication and includes role-based access control, as well as cookie handling for refresh tokens.
 
@@ -8,7 +8,7 @@
   - [Prerequisites](#prerequisites)
   - [Cloning the Repository](#cloning-the-repository)
   - [Backend (Node.js)](#backend-nodejs)
-  - [Frontend (Angular)](#frontend-angular)
+  - [Frontend (React)](#frontend-react)
 - [Environment Variables](#environment-variables)
 
 ## Technologies Used
@@ -71,11 +71,3 @@ Make sure to replace the placeholder values with your actual database credential
 Create your app password from app passwords in Google account for SMTP_PASSWORD and use your email for both SMTP_USER as well as for SMTP_MAIL.
 Create your google client credentials from google's developer console by creating new project.
 
-
-Create a `config.ts` file in the `client/src/environments` directory with the following structure:
-
-```plaintext
-export const config = {
-    encryptionSecretKey: 'your_secret_code'
-};
-```
