@@ -1,11 +1,9 @@
 import { Router } from "express";
 import UserController from "./userControllers.js";
 import { authenticateToken } from "../middlewares/auth.js";
-import {
-  validateData,
-  validateEmail,
-  validateRestoreData
-} from "../middlewares/validationMiddleware.js";
+import { validateBody } from "../middlewares/validationMiddleware.js";
+import * as userSchema from "./userValidations.js";
+import uploadMiddleware from "../middlewares/uploadMiddleware.js";
 
 const userRouter = Router();
 
@@ -13,37 +11,37 @@ const userRouter = Router();
 // -authenticateToken: Ensures that the user is authenticated
 
 // Route for sending otp to verify email by validating input data
-userRouter.post("/verify", validateData, UserController.verifyUser);
+userRouter.post("/verify", validateBody(userSchema.createUserSchema), UserController.verifyUser);
 
 // Route for creating user.
-userRouter.post("/register", validateData, UserController.createUser);
+userRouter.post("/register", validateBody(userSchema.createUserSchema), UserController.createUser);
 
 // Route for sending otp to verify email by validating email
 userRouter.post(
   "/verifyrestore",
-  validateEmail,
+  validateBody(userSchema.emailSchema),
   UserController.verifyRestoreUser
 );
 
 // Route for restoring deleted user.
-userRouter.post("/restore", validateRestoreData, UserController.restoreUser);
+userRouter.post("/restore", validateBody(userSchema.restoreUserSchema), UserController.restoreUser);
 
 // Route for sending otp to verify email by validating email
 userRouter.post(
   "/verifyforgotpassword",
-  validateEmail,
+  validateBody(userSchema.emailSchema),
   UserController.verifyForgotPassword
 );
 
 // Route for changing user password for forgot password.
 userRouter.post(
   "/forgotpassword",
-  validateRestoreData,
+  validateBody(userSchema.restoreUserSchema),
   UserController.forgotPassword
 );
 
 // Route for getting loggedin user data.
-userRouter.get("/:id", authenticateToken, UserController.getUser);
+userRouter.get("/user", authenticateToken, UserController.getUser);
 
 // Route for getting users whose name or email matches a specific regex.
 userRouter.get(
@@ -55,8 +53,9 @@ userRouter.get(
 // Route for updating user information.
 userRouter.patch(
   "/:id",
-  validateData,
   authenticateToken,
+  uploadMiddleware("profileImages", "profile"),
+  validateBody(userSchema.updateUserSchema),
   UserController.updateUser
 );
 

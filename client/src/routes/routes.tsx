@@ -4,7 +4,7 @@ import UnprotectedRoute from "../components/base/unprotectedRoute";
 import ProtectedRoute from "../components/base/protectedRoute";
 import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
-import DashboardPage from "../pages/dashboard/Dashboard";
+import DashboardPage from "../pages/dashboard";
 
 export const router = createBrowserRouter([
     {

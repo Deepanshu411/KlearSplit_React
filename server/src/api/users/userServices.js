@@ -9,6 +9,11 @@ import { ErrorHandler } from "../middlewares/errorHandler.js";
 import { otpGenrator } from "../utils/otpGenerator.js";
 import FriendService from "../friends/friendService.js";
 import Redis from "ioredis";
+import AuditLogService from "../audit/auditService.js";
+import { auditLogFormat } from "../utils/auditFormat.js";
+import { sendWelcomeMessage } from "../utils/whatsappMessage.js";
+import logger from "../utils/logger.js";
+import bcrypt from "bcryptjs";
 
 const redis = new Redis();
 
@@ -86,15 +91,18 @@ class UserService {
       if (!isUserExists) {
         // Creating new user in the database
         createdUser = await UserDb.createUser(user, transaction);
+        AuditLogService.createLog(auditLogFormat("INSERT", createdUser.user_id, "users", createdUser.user_id, { "newData": createdUser }));
       } else if (isUserExists && isUserExists.dataValues.is_invited) {
         createdUser = await UserDb.updateUser(
           { ...user, "is_invited": false },
           isUserExists.dataValues.user_id,
           transaction
-        )[ 0 ].dataValues;
+        );
+        createdUser = createdUser[ 0 ].dataValues;
         if (!createdUser) {
           throw new ErrorHandler(400, "Error while Registering");
         }
+        AuditLogService.createLog(auditLogFormat("UPDATE", createdUser.user_id, "users", createdUser.user_id, { "oldData": createdUser, "newData": createdUser }));
       }
 
       // Generate access and refresh tokens
@@ -120,6 +128,21 @@ class UserService {
         password,
         "message": "Thank you for registering with us."
       });
+
+      // Send WhatsApp message
+      const responses = await sendWelcomeMessage(user);
+
+      if (responses.error) {
+        responses.forEach((response) => {
+          logger.log({
+            "level": "error",
+            "message": JSON.stringify({
+              "statusCode": response.statusCode,
+              "message": response.error.message
+            })
+          });
+        });
+      }
 
       return { "user": createdUser, accessToken, refreshToken };
     } catch (error) {
@@ -290,10 +313,12 @@ class UserService {
     const password = generatePassword();
     const hashPassword = await hashedPassword(password);
 
-    await UserDb.updateUser(
+    const updatedUser = await UserDb.updateUser(
       { "password": hashPassword, "failedAttempts": 0, "lockoutUntil": null },
       user.user_id
     );
+
+    AuditLogService.createLog(auditLogFormat("UPDATE", user.user_id, "users", user.user_id, { "oldData": user.dataValues, "newData": updatedUser[ 0 ].dataValues }));
 
     const options = {
       "email": user.email,
@@ -323,17 +348,21 @@ class UserService {
    * Retrieves users based on a regular expression search and filters out friends.
    * @param {Object} data - The input data for fetching users based on regex search.
    * @param {string} data.regex - The regular expression pattern to search for users (e.g., a username or email pattern).
-   * @param {string} data.userId - The ID of the currently logged-in user (to filter out their existing friends).
+   * @param {string} data.fetchAll - Boolean for deciding whether to send all users or filtering out friends.
+   * @param {string} userId - The ID of the currently logged-in user (to filter out their existing friends).
    * @returns {Promise<Array>} - A filtered list of users who match the regex but are not friends with the logged-in user.
    */
-  static getUsersByRegex = async(data) => {
-    const users = await UserDb.getUsersByRegex(data.regex);
+  static getUsersByRegex = async({ data, userId }) => {
+    const users = await UserDb.getUsersByRegex(data.regex, userId);
+
+    if (data.fetchAll) {
+      return users;
+    }
     const filteredUsers = await Promise.all(
       users
-        .filter((user) => user.user_id !== data.userId) // Filter out the current user
         .map(async(user) => {
           const newFriendData = {
-            "friend1_id": data.userId, // Assuming logged-in user's ID
+            "friend1_id": userId, // Assuming logged-in user's ID
             "friend2_id": user.user_id
           };
 
@@ -351,16 +380,22 @@ class UserService {
 
   /**
    * Updates the user information in the database.
-   * @param {Object} req - The request object containing the user data and parameters.
-   * @param {Object} req.validatedUser - The validated user object with the updated user data.
+   * @param {string} id - The id of the logged in user.
+   * @param {Object} updatedUserData - The validated user object with the updated user data.
    * @returns {Promise<Object>} - The result of the update operation (updated user data).
    */
-  static updateUser = async(req) => {
-    const user = req.validatedUser;
-    const id = req.user.user_id;
+  static updateUser = async(user, id, email) => {
+    const existingUser = await UserDb.getUserByEmail(email);
+    
+    if (user.password) {
+      const validPassword = await bcrypt.compare(user.password, existingUser.dataValues.password);
 
-    await this.getUser(id);
+      if (!validPassword) {
+        throw new ErrorHandler(400, "Wrong Password. If you've forgotten your password, please use the 'Forgot Password' option on Login Page to reset it.");
+      }
 
+      user.password = await hashedPassword(user.new_password);
+    }
     return await UserDb.updateUser(user, id);
   };
 

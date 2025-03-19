@@ -118,6 +118,34 @@ class FriendDb {
   static getFriend = async(conversationId) =>
     await Friend.findByPk(conversationId);
 
+  static getFriendWithUsers = async(conversationId) =>
+    await Friend.findOne({
+      "where": { "conversation_id": conversationId },
+      "include": [
+        {
+          "model": User,
+          "as": "friend1", // Alias for friend1 relationship in Friend model
+          "required": true
+        },
+        {
+          "model": User,
+          "as": "friend2", // Alias for friend2 relationship in Friend model
+          "required": true
+        }
+      ]
+    });
+
+  static getFriendByUserIds = async(userId1, userId2) => {
+    return await Friend.findOne({
+      "where": {
+        [ Op.or ]: [
+          { "friend1_id": userId1, "friend2_id": userId2 },
+          { "friend1_id": userId2, "friend2_id": userId1 }
+        ]
+      }
+    });
+  };
+
   /**
    * Updates a friend entry with new data.
    * @param {Object} updatedData - The data to update in the friend entry.
@@ -160,20 +188,20 @@ class FriendDb {
   /**
    * Retrieves all messages for a given conversation, with support for pagination.
    * @param {UUID} conversationId - The ID of the conversation.
-   * @param {number} [page=1] - The page number for pagination.
+   * @param {number} [timestamp] - The timestamp of the last message.
    * @param {number} [pageSize=10] - The number of messages per page.
    * @returns {Promise<Array>} - A promise that resolves to an array of messages.
    */
-  static getMessages = async(conversationId, page = 1, pageSize = 10) => {
-    const offset = (page - 1) * pageSize;
-
+  static getMessages = async(conversationId, timestamp, pageSize = 10) => {
     return await FriendMessage.findAll({
       "where": {
-        "conversation_id": conversationId
+        "conversation_id": conversationId,
+        "createdAt": {
+          [ Op.lt ]: timestamp
+        }
       },
       "order": [ [ "createdAt", "DESC" ] ],
-      "limit": pageSize,
-      offset
+      "limit": pageSize
     });
   };
 
@@ -201,21 +229,23 @@ class FriendDb {
   /**
    * Retrieves all or paginated expenses for a given conversation, including payer details.
    * @param {UUID} conversationId - The ID of the conversation.
-   * @param {number} [page=1] - The page number for pagination.
+   * @param {number} [timestamp] - The timestamp of the last expense.
    * @param {number} [pageSize=10] - The number of expenses per page.
    * @param {boolean} [fetchAll=false] - Whether to fetch all expenses or use pagination.
    * @returns {Promise<Array>} - A promise that resolves to an array of expenses.
    */
   static getExpenses = async(
     conversationId,
-    page = 1,
+    timestamp,
     pageSize = 10,
     fetchAll = false
   ) => {
-    const offset = (page - 1) * pageSize;
     const options = {
       "where": {
-        "conversation_id": conversationId
+        "conversation_id": conversationId,
+        "createdAt": {
+          [ Op.lt ]: timestamp
+        }
       },
       "include": [
         {
@@ -229,7 +259,6 @@ class FriendDb {
 
     if (!fetchAll) {
       options.limit = pageSize;
-      options.offset = offset;
     }
 
     return await FriendExpense.findAll(options);
@@ -307,6 +336,8 @@ class FriendDb {
       "where": { "friend_expense_id": friendExpenseId },
       transaction
     });
+
+  static bulkAddExpenses = async(expenses, transaction) => await FriendExpense.bulkCreate(expenses, { transaction });
 }
 
 export default FriendDb;
