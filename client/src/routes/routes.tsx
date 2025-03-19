@@ -5,6 +5,7 @@ import ProtectedRoute from "../components/base/protectedRoute";
 import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import DashboardPage from "../pages/dashboard";
+import ForgotPassword from "../pages/auth/ForgotPassword";
 
 export const router = createBrowserRouter([
     {
@@ -22,6 +23,10 @@ export const router = createBrowserRouter([
             {
                 path: 'login',
                 element: <LoginPage/>
+            },
+            {
+                path: 'forgot-password',
+                element: <ForgotPassword/>
             }
         ]
     },

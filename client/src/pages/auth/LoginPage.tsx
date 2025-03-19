@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { login } from "../../store/authSlice";
-import { onLogin } from "./authService";
+import authService from "./authService";
 import API_URLS from "../../constants/apis/urls";
 import logo from "/logo.png";
 
@@ -46,7 +46,7 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await onLogin(loginInfo);
+      const res = await authService.onLogin(loginInfo);
       dispatch(login(res.data));
       navigate("/dashboard");
       toast.success(res.message);
