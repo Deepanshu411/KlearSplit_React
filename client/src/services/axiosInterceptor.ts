@@ -34,7 +34,6 @@ axiosInstance.interceptors.response.use(
     (response) => response, // Return response if no error
     async (error) => {
         const { response } = error;
-        // console.log(response, "from interceptor");
 
         if (!response) {
             toast.error("Network error. Please check your connection.");

@@ -20,19 +20,18 @@ const DashboardPage: React.FC = () => {
   const [pieChartData4, setPieChartData4] = useState<any>({ data: [] });
   const [barChartData, setBarChartData] = useState<any>({ data: [] });
 
-  const currentYear = new Date().getFullYear()
-
+  const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);
   const [years] = useState<number[]>([currentYear - 2, currentYear - 1, currentYear]);
 
+  // Fetch static chart data (runs only on mount)
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchStaticData = async () => {
       try {
-        const [expenseData, balanceData, cashFlowFriendsData, monthlyExpensesData, cashFlowGroupsData] = await Promise.all([
+        const [expenseData, balanceData, cashFlowFriendsData, cashFlowGroupsData] = await Promise.all([
           getExpense(),
           getBalanceAmounts(),
           getCashFlowFriends(),
-          getMonthlyExpenses(year),
           getCashFlowGroups(),
         ]);
 
@@ -40,16 +39,38 @@ const DashboardPage: React.FC = () => {
         setPieChartData2(balanceData[0]);
         setPieChartData3(cashFlowFriendsData[0]);
         setPieChartData4(cashFlowGroupsData[0]);
-        setBarChartData(monthlyExpensesData[0]);
 
-        setLoaders({ pieChart1: false, pieChart2: false, pieChart3: false, pieChart4: false, barChart: false });
+        setLoaders((prev) => ({
+          ...prev,
+          pieChart1: false,
+          pieChart2: false,
+          pieChart3: false,
+          pieChart4: false,
+        }));
       } catch (error) {
         toast.error("Error fetching data");
       }
     };
 
-    fetchData();
-  }, [year]);
+    fetchStaticData();
+  }, []); // Runs only on mount
+
+  // Fetch monthly expenses (runs when year changes)
+  useEffect(() => {
+    const fetchMonthlyExpenses = async () => {
+      try {
+        const [monthlyExpensesData] = await Promise.all([getMonthlyExpenses(year)]);
+
+        setBarChartData(monthlyExpensesData[0]);
+        setLoaders((prev) => ({ ...prev, barChart: false }));
+      } catch (error) {
+        toast.error("Error fetching monthly expenses data");
+      }
+    };
+
+    setLoaders((prev) => ({ ...prev, barChart: true })); // Set loading for BarChart before fetching
+    fetchMonthlyExpenses();
+  }, [year]); // Runs when year changes
 
   const handleYearChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setYear(parseInt(event.target.value));
@@ -61,7 +82,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="w-full p-4 space-y-4">
-      {/* Pie Charts Grid - Adjusted for Medium Screens */}
+      {/* Pie Charts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { title: "Number of Expenses by Amount Range", data: pieChartData1, loader: loaders.pieChart1 },
@@ -83,15 +104,16 @@ const DashboardPage: React.FC = () => {
                 }]}
                 slotProps={{
                   legend: {
-                    direction: 'column',
-                    position: { vertical: 'bottom', horizontal: 'right' },
+                    direction: "column",
+                    position: { vertical: "bottom", horizontal: "right" },
                     padding: 0,
                     labelStyle: {
                       fontSize: 8,
                     },
                   },
                 }}
-                width={300} height={200}
+                width={300}
+                height={200}
               />
             ) : (
               <NoDataMessage />
@@ -100,31 +122,37 @@ const DashboardPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Bar Chart Row */}
+      {/* Bar Chart */}
       <div className="grid grid-cols-1 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-md w-full h-[320px] flex flex-col">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
             <h5 className="text-base font-semibold">Monthly Expenses</h5>
             <select
               className="bg-amber-50 px-2 py-1 border rounded-md focus:ring focus:ring-amber-200"
-              value={year} onChange={handleYearChange}
+              value={year}
+              onChange={handleYearChange}
             >
               {years.map((year, index) => (
-                <option key={index} value={year}>{year}</option>
+                <option key={index} value={year}>
+                  {year}
+                </option>
               ))}
             </select>
           </div>
           {loaders.barChart ? (
             <LoadingSkeleton />
           ) : hasNonZeroData(barChartData) ? (
-            <BarChart xAxis={[{
-              data: [
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-              ],
-              dataKey: "month",
-              scaleType: "band",
-            }]} series={[{ ...barChartData, color: "#673AB7" }]} height={250} />
+            <BarChart
+              xAxis={[
+                {
+                  data: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+                  dataKey: "month",
+                  scaleType: "band",
+                },
+              ]}
+              series={[{ ...barChartData, color: "#673AB7" }]}
+              height={250}
+            />
           ) : (
             <NoDataMessage />
           )}

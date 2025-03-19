@@ -44,9 +44,7 @@ function ResponsiveAppBar() {
   };
 
   const handleCloseUserMenu = async(setting: string) => {
-    console.log(setting);
     if (setting === 'Logout') {
-      console.log(setting);
       dispatch(logout());
       await onLogout();
       return;

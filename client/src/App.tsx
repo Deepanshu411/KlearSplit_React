@@ -27,17 +27,15 @@ function App() {
           dispatch(login(userData));
         }
       } catch (error) {
-        if (isAuthenticated) {
-          toast.info('You have been logged out, please log in again!');
-          dispatch(logout());
-        }
+        toast.info('You have been logged out, please log in again!');
+        dispatch(logout());
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserData();
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch]);
 
   if (loading) {
     return (
