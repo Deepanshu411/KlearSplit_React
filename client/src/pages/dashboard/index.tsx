@@ -82,8 +82,9 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="w-full p-4 space-y-4">
-      {/* Pie Charts Grid */}
+      {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {/* Pie Charts */}
         {[
           { title: "Number of Expenses by Amount Range", data: pieChartData1, loader: loaders.pieChart1 },
           { title: "Balance Amount", data: pieChartData2, loader: loaders.pieChart2 },
@@ -96,7 +97,7 @@ const DashboardPage: React.FC = () => {
               <LoadingSkeleton />
             ) : hasNonZeroData(data) ? (
               <PieChart
-                colors={["#5C85D6", "#4A72C2", "#8559C1", "#7E57C2", "#6A4BA2"]}
+                colors={["#E16F7C", "#4BC6B9", "#7D82B8", "#7B4B94", "#82735C"]}
                 series={[{
                   ...data,
                   highlightScope: { fade: 'global', highlight: 'item' },
@@ -120,6 +121,8 @@ const DashboardPage: React.FC = () => {
             )}
           </div>
         ))}
+
+        {/* Bar Chart */}
         <div className="bg-white rounded-xl p-4 shadow-md w-full h-[320px] flex flex-col md:col-span-2 xl:col-span-4">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
             <h5 className="text-base font-semibold">Monthly Expenses</h5>
@@ -146,7 +149,7 @@ const DashboardPage: React.FC = () => {
                   scaleType: "band",
                 },
               ]}
-              series={[{ ...barChartData, color: "#673AB7" }]}
+              series={[{ ...barChartData, color: "#7B4B94" }]}
               height={250}
             />
           ) : (
@@ -154,43 +157,6 @@ const DashboardPage: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Bar Chart */}
-      {/* <div className="grid grid-cols-1 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-md w-full h-[320px] flex flex-col">
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-            <h5 className="text-base font-semibold">Monthly Expenses</h5>
-            <select
-              className="bg-amber-50 px-2 py-1 border rounded-md focus:ring focus:ring-amber-200"
-              value={year}
-              onChange={handleYearChange}
-            >
-              {years.map((year, index) => (
-                <option key={index} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </div>
-          {loaders.barChart ? (
-            <LoadingSkeleton />
-          ) : hasNonZeroData(barChartData) ? (
-            <BarChart
-              xAxis={[
-                {
-                  data: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-                  dataKey: "month",
-                  scaleType: "band",
-                },
-              ]}
-              series={[{ ...barChartData, color: "#673AB7" }]}
-              height={250}
-            />
-          ) : (
-            <NoDataMessage />
-          )}
-        </div>
-      </div> */}
     </div>
   );
 };

@@ -29,7 +29,7 @@ const forgotPassword = async (email: string, otp: string) => {
     return response.data;
 };
 
-export {
+export default {
     onLogin,
     onLogout,
     onRefreshToken,

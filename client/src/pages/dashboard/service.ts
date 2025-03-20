@@ -5,7 +5,7 @@ export const getExpense = async () => {
   const response = await axiosInstance.get(API_URLS.dashboard.expensesCount);
   return [
     {
-      data: response.data.data.map((value: number, index:number) => ({
+      data: response.data.data.map((value: number, index: number) => ({
         id: index,
         value: value || 0, // Replace NaN with 0
         label: ["1-1000", "1001-5000", "5001-10000", "10001-15000", ">15000"][index] || `Category ${index}`,
@@ -21,8 +21,12 @@ export const getBalanceAmounts = async () => {
       data: response.data.data.map((value: number, index: number) => ({
         id: index,
         value: value || 0,
-        label: [ "Amount Lent", "Amount Borrowed" ][index] || `Category ${index}`,
+        label: ["Amount Lent", "Amount Borrowed"][index] || `Category ${index}`,
+        color: ["Green", "Red"][index],
       })),
+      innerRadius: 30,
+      outerRadius: 100,
+      paddingAngle: 5,
     },
   ];
 };
@@ -43,7 +47,7 @@ export const getCashFlowFriends = async () => {
 };
 
 export const getMonthlyExpenses = async (year: number) => {
-  const response = await axiosInstance.post(API_URLS.dashboard.monthlyExpenses, { year }); 
+  const response = await axiosInstance.post(API_URLS.dashboard.monthlyExpenses, { year });
 
   return [
     {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { TextField, Button, Typography, Stack, InputAdornment } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { sendOtp, verifyOtp } from "./authService";
+import authService from "./authService";
 import logo from "/logo.png";
 import { Person, Lock } from "@mui/icons-material";
 
@@ -48,7 +48,7 @@ const ForgotPassword = () => {
         e.preventDefault();
         if (errors.email) return;
         try {
-            await sendOtp(email);
+            await authService.verifyForgotPassword(email);
             toast.success("OTP sent to your email");
             setStep(2);
         } catch (error) {
@@ -60,7 +60,7 @@ const ForgotPassword = () => {
         e.preventDefault();
         if (errors.otp) return;
         try {
-            await verifyOtp(email, otp);
+            await authService.forgotPassword(email, otp);
             toast.success("OTP verified");
             navigate("/login");
         } catch (error) {

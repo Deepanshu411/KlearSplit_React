@@ -14,7 +14,7 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { onLogout } from '../../pages/auth/authService';
+import authService from '../../pages/auth/authService';
 import { logout } from '../../store/authSlice';
 
 const pages = ["Dashboard", "Friends", "Groups"];
@@ -29,7 +29,7 @@ function ResponsiveAppBar() {
   const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
 
-  const profileImage = user?.image_url || '/static/images/avatar/6.jpg';
+  const profileImage = user?.image_url || "https://randomuser.me/api/portraits/women/6.jpg";
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNav(event.currentTarget);
@@ -39,17 +39,34 @@ function ResponsiveAppBar() {
   };
 
   const handleCloseNavMenu = (page: string) => {
-    navigate(`/${page.toLowerCase()}`);
+    switch (page) {
+      case "Dashboard":
+        navigate("/dashboard");
+        break;
+      case "Friends":
+        navigate("/friends");
+        break;
+      case "Groups":
+        navigate("/groups");
+        break;
+      default:
+        break;
+    }
     setAnchorElNav(null);
   };
 
   const handleCloseUserMenu = async(setting: string) => {
-    if (setting === 'Logout') {
-      dispatch(logout());
-      await onLogout();
-      return;
+    switch (setting) {
+      case "Profile":
+        navigate('/profile');
+        break;
+      case "Logout":
+        dispatch(logout());
+        await authService.onLogout();
+        break;
+      default:
+        break;
     }
-    navigate(`/profile`);
     setAnchorElUser(null);
   };
 
