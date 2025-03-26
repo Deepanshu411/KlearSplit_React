@@ -25,5 +25,18 @@ export default {
         cashFlowFriends: "/dashboard/cashflowfriends",
         monthlyExpenses: "/dashboard/monthlyexpenses",
         cashFlowGroups: "/dashboard/cashflowgroups",
-    }
+    },
+    friends: {
+        addFriend: "/friends/addfriend",
+        acceptRejectRequest: "/friends/acceptrejectfriend",
+        withdrawRequest: "/friends/withdrawfriendrequest",
+        getFriends: "/friends/getallfriends",
+        archiveBlockRequest: "/friends/archiveblockfriend",
+        addExpense: "/friends/addexpense",
+        getExpenses: "/friends/getexpenses",
+        getMessages: "/friends/getmessages",
+        getCombined: "/friends/getboth",
+        updateExpense: "/friends/updateexpense",
+        deleteExpense: "/friends/deleteexpense",
+    },
 };

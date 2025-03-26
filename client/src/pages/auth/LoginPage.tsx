@@ -171,7 +171,7 @@ const LoginPage: React.FC = () => {
       </div>
 
       {/* Right Section */}
-      <div className="col-span-5 h-full md:w-full hidden md:box lg:flex items-center bg-[#3674B5] rounded-r-lg shadow-2xl px-10 py-12 text-white">
+      <div className="col-span-5 h-full md:w-full hidden md:flex lg:flex items-center bg-[#3674B5] rounded-r-lg shadow-2xl px-10 py-12 text-white">
         <div>
           <h4 className="text-2xl font-semibold mb-4">Welcome to KlearSplit!</h4>
           <p className="text-sm mb-4">

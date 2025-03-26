@@ -6,6 +6,7 @@ import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import DashboardPage from "../pages/dashboard";
 import ForgotPassword from "../pages/auth/ForgotPassword";
+import FriendsPage from "../pages/chat/friends";
 
 export const router = createBrowserRouter([
     {
@@ -27,7 +28,7 @@ export const router = createBrowserRouter([
             {
                 path: 'forgot-password',
                 element: <ForgotPassword/>
-            }
+            },
         ]
     },
     {
@@ -37,6 +38,10 @@ export const router = createBrowserRouter([
             {
                 path: 'dashboard',
                 element: <DashboardPage/>
+            },
+            {
+                path: 'friends',
+                element: <FriendsPage/>
             }
         ]
     }
