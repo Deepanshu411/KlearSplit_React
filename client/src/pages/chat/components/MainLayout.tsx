@@ -3,7 +3,7 @@ import ChatList from "./ChatList";
 import ChatHeader from "./ChatHeader";
 import ChatWindow from "./ChatWindow";
 import MessageInput from "./MessageInput";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SwitchList from "./SwitchList";
 import { Typography } from "@mui/material";
 
@@ -19,6 +19,26 @@ const MainLayout: React.FC<MainLayoutProps> = ({ title, items }) => {
     const [open, setOpen] = useState(false);
     const [openViewExpenses, setOpenViewExpenses] = useState(false);
     const [selectedFriend, setSelectedFriend] = useState<FriendData | null>(null);
+    const [filteredFriends, setFilteredFriends] = useState(items);
+
+    useEffect(() => {
+        setFilteredFriends(items);
+    }, [items]);
+
+    const handleSearch = (query: string) => {
+        if (!query) {
+            setFilteredFriends(items); // Reset if query is empty
+            return;
+        }
+        const lowercasedQuery = query.toLowerCase();
+        setFilteredFriends(
+            items.filter(
+                (friend) =>
+                    friend.friend.first_name.toLowerCase().includes(lowercasedQuery) ||
+                    friend.friend.email.toLowerCase().includes(lowercasedQuery)
+            )
+        );
+    };
 
     const handleOpenDialog = () => {
         setOpen(true);
@@ -27,7 +47,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ title, items }) => {
     const handleCloseDialog = () => {
         setOpen(false);
     };
-    
+
     const handleOpenViewExpenses = () => {
         setOpenViewExpenses(true);
     };
@@ -48,9 +68,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ title, items }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4">
             {/* Left Panel */}
             <div className="bg-white h-full flex flex-col items-center col-span-1 p-4 rounded-lg space-y-6">
-                <SearchBar open={open} handleClickOpen={handleOpenDialog} handleClose={handleCloseDialog} />
+                <SearchBar open={open} handleClickOpen={handleOpenDialog} handleClose={handleCloseDialog} onSearch={handleSearch} />
                 <SwitchList title={title} selected={selected} setSelected={setSelected} />
-                <ChatList friends={items} onSelectFriend={setSelectedFriend} />
+                <ChatList friends={filteredFriends} onSelectFriend={setSelectedFriend} />
             </div>
 
             {/* Right Panel */}

@@ -1,14 +1,24 @@
 import { Search, PersonAddAlt1Sharp } from "@mui/icons-material";
 import { Button, TextField, InputAdornment, Tooltip } from "@mui/material";
 import AddFriend from "./AddFriend";
+import { useState } from "react";
 
 interface SearchBarProps {
   open: boolean;
   handleClickOpen: () => void;
   handleClose: () => void;
+  onSearch: (query: string) => void;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ open, handleClickOpen, handleClose }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ open, handleClickOpen, handleClose, onSearch }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const query = event.target.value;
+    setSearchQuery(query);
+    onSearch(query); // Pass query to parent to filter the list
+  };
+
   return (
     <div className="flex flex-row items-center justify-center w-full gap-2">
       <TextField
@@ -17,6 +27,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ open, handleClickOpen, handleClos
         name="search_field"
         size="small"
         fullWidth
+        value={searchQuery}
+        onChange={handleSearchChange}
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
