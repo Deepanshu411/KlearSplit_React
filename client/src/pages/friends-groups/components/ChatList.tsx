@@ -1,4 +1,4 @@
-import { getBalanceAsNumber } from "../utils.ts"; // Utility function for balance conversion
+import { getBalanceAsNumber } from "../utils/getBalanceAsNumber.ts"; // Utility function for balance conversion
 
 interface ChatListProps {
   friends: FriendData[];

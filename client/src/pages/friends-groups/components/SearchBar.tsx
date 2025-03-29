@@ -1,17 +1,23 @@
 import { Search, PersonAddAlt1Sharp } from "@mui/icons-material";
 import { Button, TextField, InputAdornment, Tooltip } from "@mui/material";
-import AddFriend from "./AddFriend";
+import AddFriend from "../friends/AddFriend";
 import { useState } from "react";
 
 interface SearchBarProps {
-  open: boolean;
-  handleClickOpen: () => void;
-  handleClose: () => void;
   onSearch: (query: string) => void;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ open, handleClickOpen, handleClose, onSearch }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
+  const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleOpenDialog = () => {
+    setOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpen(false);
+  };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
@@ -38,11 +44,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ open, handleClickOpen, handleClos
         }}
       />
       <Tooltip title="Add Friend" arrow>
-        <Button className="h-full rounded-3xl" variant="contained" color="primary" onClick={handleClickOpen}>
+        <Button className="h-full rounded-3xl" variant="contained" color="primary" onClick={handleOpenDialog}>
           <PersonAddAlt1Sharp />
         </Button>
       </Tooltip>
-      <AddFriend open={open} handleClose={handleClose} />
+      <AddFriend open={open} handleClose={handleCloseDialog} />
     </div>
   );
 };

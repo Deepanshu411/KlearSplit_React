@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { Delete, Edit, Download } from "@mui/icons-material";
 import { toast } from "sonner";
-import { deleteExpense, fetchExpenses } from "../friends/services";
+import { deleteExpense, fetchAllExpenses } from "../friends/services";
 
 interface ViewExpensesDialogProps {
   friend: FriendData | null;
@@ -43,13 +43,20 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
   const [deleteLoader, setDeleteLoader] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) {
-      setLoading(true);
-      fetchExpenses(friend?.conversation_id!)
-        .then((data) => setExpenses(data))
-        .catch(() => toast.error("Failed to load expenses"))
-        .finally(() => setLoading(false));
+    const getAllExpenses = async () => {
+      if (open) {
+        setLoading(true);
+        try {
+          const data = await fetchAllExpenses(friend?.conversation_id!);
+          setExpenses(data);
+        } catch (error) {
+          toast.error("Failed to load expenses");
+        } finally {
+          setLoading(false);
+        }
+      }
     }
+    getAllExpenses();
   }, [open, friend?.conversation_id!]);
 
   const handleDelete = async (conversationId: string, expenseId: string) => {

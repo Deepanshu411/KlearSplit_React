@@ -21,6 +21,22 @@ interface Friend {
     data: FriendData[];
 }
 
+interface MessageData {
+    message_id: string;
+    conversation_id: string;
+    sender_id: string;
+    message: string;
+    is_read: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface Message {
+    success: string;
+    message: string;
+    data: MessageData[];
+}
+
 interface ExpenseData {
     createdAt: string;
     debtor_amount: string;
@@ -36,4 +52,54 @@ interface ExpenseData {
     total_amount: string;
     updatedAt: string;
     payer: string;
+}
+
+interface ExpenseResponse {
+    success: string;
+    message: string;
+    data: ExpenseData;
+}
+
+interface Expense {
+    success: string;
+    message: string;
+    data: ExpenseData[];
+}
+
+interface SettlementData {
+    split_type: string;
+    total_amount: string;
+}
+
+interface ExpenseInput {
+    expense_name: string;
+    total_amount: string;
+    description?: string;
+    split_type: string;
+    payer_id: string;
+    participant1_share: string;
+    participant2_share: string;
+    receipt?: File;
+    debtor_share: string;
+    debtor_id: string;
+}
+
+interface CombinedMessage extends MessageData {
+    type: string;
+}
+
+interface CombinedExpense extends ExpenseData {
+    type: string;
+}
+
+interface CombinedView {
+    success: string;
+    message: string;
+    data: (CombinedExpense | CombinedMessage)[];
+}
+
+interface FetchResult {
+    messages: Message[];
+    expenses: Expense[];
+    combined: CombinedView[];
 }

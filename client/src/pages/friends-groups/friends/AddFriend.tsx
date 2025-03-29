@@ -2,7 +2,7 @@ import {
     Button, Dialog, DialogActions, DialogContent, DialogContentText,
     DialogTitle, TextField, CircularProgress
 } from "@mui/material";
-import { addFriend, searchUser } from "../friends/services";
+import { addFriend, searchUser } from "./services";
 import { useCallback, useState } from "react";
 import debounce from "../../../utils/debounce";
 import { toast } from "sonner";

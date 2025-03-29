@@ -6,7 +6,8 @@ import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
 import DashboardPage from "../pages/dashboard";
 import ForgotPassword from "../pages/auth/ForgotPassword";
-import FriendsPage from "../pages/chat/friends";
+import FriendsPage from "../pages/friends-groups/friends";
+import GroupsPage from "../pages/friends-groups/groups";
 
 export const router = createBrowserRouter([
     {
@@ -42,6 +43,10 @@ export const router = createBrowserRouter([
             {
                 path: 'friends',
                 element: <FriendsPage/>
+            },
+            {
+                path: 'groups',
+                element: <GroupsPage/>
             }
         ]
     }

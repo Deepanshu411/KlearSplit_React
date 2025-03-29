@@ -39,4 +39,22 @@ export default {
         updateExpense: "/friends/updateexpense",
         deleteExpense: "/friends/deleteexpense",
     },
+    groups: {
+        createGroup: "/groups/create",
+        getGroups: "/groups/usergroups",
+        updateGroupMember: "/groups/updatemember",
+        group: "/groups",
+        saveGroupMessages: "/groups/savemessage",
+        getGroupMessages: "/groups/getmessages",
+        addGroupMembers: "/groups/addmembers",
+        leaveGroup: "/groups/leavegroup",
+        addGroupExpense: "/groups/addexpense",
+        addGroupSettlements: "/groups/addsettlement",
+        fetchExpensesSettlements: "/groups/expensessettlements",
+        fetchGroupCombined: "/groups/messagesexpensessettlements",
+        deleteGroupExpense: "/groups/deleteexpense",
+        deleteGroupSettlement: "/groups/deletesettlement",
+        updateGroupExpense: "/groups/updateexpense",
+        updateGroupSettlement: "/groups/updatesettlement",
+    }
 };
