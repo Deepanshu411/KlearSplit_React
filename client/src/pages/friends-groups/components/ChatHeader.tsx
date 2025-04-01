@@ -3,25 +3,33 @@ import { IconButton, Select, MenuItem, Menu } from "@mui/material";
 import ViewExpensesDialog from "./ViewExpensesDialog";
 import { useState } from "react";
 import Settlement from "./Settlement";
+import { toast } from "sonner";
+import { archiveBlockFriend } from "../friends/services";
 
 interface ChatHeaderProps {
+    currentView: "All" | "Expenses" | "Messages";
+    setCurrentView: (value: "All" | "Expenses" | "Messages") => void;
     friend: FriendData | null;
+    setSelectedFriend: (friend: FriendData | null) => void;
+    blockStatus: "BLOCK" | "UNBLOCK";
+    setBlockStatus: (status: "BLOCK" | "UNBLOCK") => void;
+    archiveStatus: "ARCHIVE" | "UNARCHIVE";
+    setArchiveStatus: (status: "ARCHIVE" | "UNARCHIVE") => void;
 }
 
 const ITEM_HEIGHT = 48;
-const options = [
-    "Settle Up",
-    "View Expenses",
-    "Block",
-    "Archive",
-];
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ friend }) => {
-    const [currentView, setCurrentView] = useState("All");
+const ChatHeader: React.FC<ChatHeaderProps> = ({ currentView, setCurrentView, friend, setSelectedFriend, blockStatus, setBlockStatus, archiveStatus, setArchiveStatus }) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
     const [settlementOpen, setSettlementOpen] = useState(false);
     const [openViewExpenses, setOpenViewExpenses] = useState(false);
+    const options = [
+        "Settle Up",
+        "View Expenses",
+        blockStatus === "BLOCK" ? "Block" : "Unblock",
+        archiveStatus === "ARCHIVE" ? "Archive" : "Unarchive",
+    ];
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
     };
@@ -36,6 +44,27 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ friend }) => {
     const handleOpenViewExpenses = () => setOpenViewExpenses(true);
 
     const handleCloseViewExpenses = () => setOpenViewExpenses(false);
+
+    const handleClickBlock = async () => {
+        try {
+            await archiveBlockFriend(friend?.conversation_id!, "blocked");
+            setBlockStatus(blockStatus === "BLOCK" ? "UNBLOCK" : "BLOCK");
+            toast.success(`Conversation ${blockStatus}ED successfully`);
+        } catch {
+            toast.error("Error Blocking Conversation! Please try again later.")
+        }
+    }
+
+    const handleClickArchive = async () => {
+        try {
+            console.log("hiii")
+            await archiveBlockFriend(friend?.conversation_id!, "archived");
+            setArchiveStatus(archiveStatus === "ARCHIVE" ? "UNARCHIVE" : "ARCHIVE");
+            toast.success(`Conversation ${archiveStatus}D successfully`);
+        } catch {
+            toast.error("Error Archiving Conversation! Please try again later.")
+        }
+    }
     const handleMenuClick = (option: string) => {
         switch (option) {
             case "Settle Up":
@@ -45,8 +74,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ friend }) => {
                 handleOpenViewExpenses();
                 break;
             case "Block":
+            case "Unblock":
+                handleClickBlock();
                 break;
             case "Archive":
+            case "Unarchive":
+                handleClickArchive();
                 break;
             default:
                 break
@@ -58,16 +91,16 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ friend }) => {
         <>
             <Settlement open={settlementOpen} handleSettlementClose={handleCloseSettlement} />
             <ViewExpensesDialog friend={friend} open={openViewExpenses} onClose={handleCloseViewExpenses} />
-            <div className="flex flex-row items-center justify-between p-2">
+            <div className="flex flex-row items-center justify-between p-1">
                 <div className="flex flex-row items-center gap-2">
-                    <IconButton>
+                    <IconButton onClick={() => setSelectedFriend(null)}>
                         <ArrowBack />
                     </IconButton>
                     <img src={friend?.friend.image_url || "https://randomuser.me/api/portraits/men/9.jpg"} alt="profile_image" className="h-10 w-10 rounded-full" />
                     <h5 className="text-lg font-semibold">{friend?.friend.first_name}</h5>
                 </div>
                 <div className="flex flex-row items-center gap-2">
-                    <Select value={currentView} onChange={(e) => setCurrentView(e.target.value)}>
+                    <Select value={currentView} onChange={(e) => setCurrentView(e.target.value as "All" | "Expenses" | "Messages")}>
                         <MenuItem value="All">All</MenuItem>
                         <MenuItem value="Expenses">Expenses</MenuItem>
                         <MenuItem value="Messages">Messages</MenuItem>

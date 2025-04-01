@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import API_URLS from '../../../constants/apis/urls';
 import axiosInstance from '../../../services/axiosInterceptor';
 
@@ -15,17 +16,24 @@ export const addFriend = async (email: string) => {
     return friend.data.data;
 }
 
+export const acceptRejectFriendRequest = async (conversationId: string, status: string) => {
+    const response = await axiosInstance.patch(
+        `${API_URLS.friends.acceptRejectRequest}/${conversationId}`, { status }
+    );
+    return response.data.data;
+}
+
 export const getFriends = async () => {
     const response = await axiosInstance.get(API_URLS.friends.getFriends);
     return response.data.data;
 };
 
-// 🔹 Generic function to sort data by createdAt timestamp
-// const sortByCreatedAt = <T extends { createdAt: string }>(data: T[]): T[] => {
-//     return data.sort(
-//         (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-//     );
-// };
+export const archiveBlockFriend = async (conversationId: string, type: string) => {
+    const response = await axiosInstance.patch(
+        `${API_URLS.friends.archiveBlockRequest}/${conversationId}`, { type }
+    );
+    return response.data.data;
+}
 
 // 🔹 Function to fetch messages, expenses, and combined data
 export const fetchMessagesAndExpenses = async (
@@ -39,32 +47,33 @@ export const fetchMessagesAndExpenses = async (
 ): Promise<FetchResult> => {
     try {
         const requests: Promise<any>[] = [];
+        const requestTypes: ("messages" | "expenses" | "combined")[] = [];
 
         if (loadMessages) {
             requests.push(
                 axiosInstance.get<Message>(`${API_URLS.friends.getMessages}/${conversationId}`, {
                     params: { pageSize, timestamp: timestampMessage },
-                    withCredentials: true,
                 })
             );
+            requestTypes.push("messages");
         }
 
         if (loadExpenses) {
             requests.push(
                 axiosInstance.get<Expense>(`${API_URLS.friends.getExpenses}/${conversationId}`, {
                     params: { pageSize, timestamp: timestampExpense },
-                    withCredentials: true,
                 })
             );
+            requestTypes.push("expenses");
         }
 
         if (!loadMessages && !loadExpenses) {
             requests.push(
                 axiosInstance.get<CombinedView>(`${API_URLS.friends.getCombined}/${conversationId}`, {
                     params: { pageSize: pageSize * 2, timestamp: timestampCombined },
-                    withCredentials: true,
                 })
             );
+            requestTypes.push("combined");
         }
 
         const responses = await Promise.all(requests);
@@ -74,26 +83,32 @@ export const fetchMessagesAndExpenses = async (
         let combined: (CombinedExpense | CombinedMessage)[] = [];
 
         // 🔹 Process API responses
-        responses.forEach((response) => {
-            if (response.data.success) {
-                if ("data" in response.data) {
-                    const sortedData = sortByCreatedAt(response.data.data);
-                    if (sortedData.length > 0) {
-                        if ("message" in sortedData[0]) {
-                            messages = sortedData as MessageData[];
-                        } else if ("total_amount" in sortedData[0]) {
-                            expenses = sortedData as ExpenseData[];
-                        } else {
-                            combined = sortedData as (CombinedExpense | CombinedMessage)[];
-                        }
-                    }
-                }
+        responses.forEach((response, index) => {
+            if (!response.data.success || !("data" in response.data)) return;
+
+            const sortedData = sortByCreatedAt(response.data.data);
+            if (sortedData.length === 0) return;
+
+            const requestType = requestTypes[index]; // Identify which request this response belongs to
+
+            switch (requestType) {
+                case "messages":
+                    messages = sortedData as MessageData[];
+                    break;
+                case "expenses":
+                    expenses = sortedData as ExpenseData[];
+                    break;
+                case "combined":
+                    combined = sortedData as (CombinedExpense | CombinedMessage)[];
+                    break;
+                default:
+                    break;
             }
         });
 
         return { messages: [{ success: "true", message: "Success", data: messages }], expenses: [{ success: "true", message: "Success", data: expenses }], combined: [{ success: "true", message: "Success", data: combined }] };
     } catch (error) {
-        console.error("Error fetching messages and expenses:", error);
+        toast.error("Error fetching messages and expenses:");
         return { messages: [], expenses: [], combined: [] };
     }
 };

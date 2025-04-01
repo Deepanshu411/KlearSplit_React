@@ -1,34 +1,18 @@
 import { ModalDialog } from "@mui/joy"
 import { Modal, DialogTitle, Box, Typography, Avatar, Divider, ListItem, ListItemAvatar, ListItemButton, ListItemText, ButtonGroup } from "@mui/material"
-import { useSelector } from "react-redux"
-import { RootState } from "../../../store"
-import { useState } from "react"
 import Button from '@mui/joy/Button';
 import { motion } from "framer-motion"
 
-const SplitType: React.FC<{
-    open: boolean,
-    handleSplitTypeClose: () => void
-}> = ({ open, handleSplitTypeClose }) => {
-    const [splitType, setSplitType] = useState("EQUAL");
-    const user = useSelector((store: RootState) => store.auth.user)
-    const [expenseInfo, setExpenseInfo] = useState({
-        expense_name: "",
-        total_amount: "",
-        description: "",
-        payer_id: user?.user_id,
-        participant1_share: 0,
-        participant2_share: 0,
-        split_type: "EQUAL",
-        receipt: null
-    });
-    const [errors, setErrors] = useState({
-        expense_name: "",
-        total_amount: "",
-        description: ""
-    })
-    const handleViewChange = (view: string) => setSplitType(view);
-    const onChange = (key: string, value: string | number) => setExpenseInfo((prev) => ({ ...prev, [key]: value }))
+interface SplitTypeProps {
+    open: boolean;
+    participants: User[];
+    handleSplitTypeClose: () => void;
+    splitType: "EQUAL" | "UNEQUAL" | "PERCENTAGE";
+    setSplitType: (splitType: "EQUAL" | "UNEQUAL" | "PERCENTAGE") => void;
+}
+
+const SplitType: React.FC<SplitTypeProps> = ({ open, participants, handleSplitTypeClose, splitType, setSplitType }) => {
+    const handleViewChange = (view: "EQUAL" | "UNEQUAL" | "PERCENTAGE") => setSplitType(view);
     return (
         <Modal hideBackdrop={true} open={open} onClose={() => handleSplitTypeClose()}>
             <motion.div
@@ -78,10 +62,10 @@ const SplitType: React.FC<{
                     </Box>
                     <Box className="rounded bg-[white] flex flex-col">
                         {
-                            [0, 1].map((index) => {
+                            participants.map((participant) => {
                                 return (
                                     <>
-                                        <ListItem disablePadding alignItems="flex-start" key={index}>
+                                        <ListItem disablePadding alignItems="flex-start" key={participant.user_id}>
                                             <ListItemButton sx={{ paddingX: 1 }}>
                                                 <ListItemAvatar sx={{ minWidth: 32, paddingRight: 1 }}>
                                                     <Avatar alt="Remy Sharp" src="/static/images/avatar/1.jpg" sx={{ width: 32, height: 32 }} />
@@ -89,7 +73,7 @@ const SplitType: React.FC<{
                                                 <ListItemText
                                                     primary={
                                                         <Box className="flex justify-between">
-                                                            <Box>Rohit Chaudhary</Box>
+                                                            <Box>{`${participant.first_name} ${participant.last_name || ""}`.trim()}</Box>
                                                         </Box>
                                                     }
                                                     secondary={
@@ -98,7 +82,7 @@ const SplitType: React.FC<{
                                                             variant="body2"
                                                             sx={{ color: 'text.primary', display: 'inline' }}
                                                         >
-                                                            sdesdewdwsit@gmail.com
+                                                            {participant.email}
                                                         </Typography>
                                                     }
                                                 />

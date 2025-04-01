@@ -9,10 +9,13 @@ import ChatWindow from "../components/ChatWindow";
 import MessageInput from "../components/MessageInput";
 import { Typography } from "@mui/material";
 const FriendsPage = () => {
+    const [currentView, setCurrentView] = useState<"All" | "Expenses" | "Messages">("All");
     const [friends, setFriends] = useState<FriendData[]>([]);
     const [selected, setSelected] = useState("Friends");
     const [selectedFriend, setSelectedFriend] = useState<FriendData | null>(null);
     const [filteredFriends, setFilteredFriends] = useState(friends);
+    const [blockStatus, setBlockStatus] = useState<"BLOCK" | "UNBLOCK">("BLOCK");
+    const [archiveStatus, setArchiveStatus] = useState<"ARCHIVE" | "UNARCHIVE">("ARCHIVE");
 
     useEffect(() => {
         setFilteredFriends(friends);
@@ -48,7 +51,7 @@ const FriendsPage = () => {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4">
             {/* Left Panel */}
-            <div className="bg-white h-full flex flex-col items-center col-span-1 p-4 rounded-lg space-y-6">
+            <div className={`bg-white h-full lg:flex lg:flex-col items-center col-span-1 p-4 rounded-lg space-y-6 ${selectedFriend ? "hidden" : "flex flex-col"}`}>
                 <SearchBar onSearch={handleSearch} />
                 <SwitchList title="Friends" selected={selected} setSelected={setSelected} />
                 <ChatList friends={filteredFriends} onSelectFriend={(friend) => setSelectedFriend(friend as FriendData)} />
@@ -57,13 +60,13 @@ const FriendsPage = () => {
             {/* Right Panel */}
             {selectedFriend ?
                 <div className="bg-white h-full flex flex-col col-span-1 lg:col-span-2 p-4 rounded-lg">
-                    <ChatHeader friend={selectedFriend} />
+                    <ChatHeader currentView={currentView} setCurrentView={setCurrentView} friend={selectedFriend} setSelectedFriend={setSelectedFriend} blockStatus={blockStatus} setBlockStatus={setBlockStatus} archiveStatus={archiveStatus} setArchiveStatus={setArchiveStatus} />
                     <hr className="border-t-4 border-gray-400" />
-                    <ChatWindow friend={selectedFriend} />
+                    <ChatWindow currentView={currentView} friend={selectedFriend} />
                     <hr className="border-t-4 border-gray-400" />
-                    <MessageInput />
+                    <MessageInput friend={selectedFriend} blockStatus={blockStatus} />
                 </div> :
-                <div className="bg-white h-full flex flex-col col-span-1 lg:col-span-2 p-4 rounded-lg items-center justify-center">
+                <div className="bg-white h-full hidden lg:flex flex-col col-span-1 lg:col-span-2 p-4 rounded-lg items-center justify-center">
                     <Typography className="text-blue-500" fontSize={35}>Please select a chat to start!</Typography>
                 </div>
             }

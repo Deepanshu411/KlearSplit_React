@@ -26,7 +26,7 @@ const ExpenseItem: React.FC<ExpenseItemProp> = ({ expense, isCurrentUserPayer, i
 
     }
     return (
-        <li className={`flex mb-1 px-2 ${isCurrentUserPayer ? "justify-end" : "justify-start"}`}>
+        <li className={`flex w-full mb-1 px-2 ${isCurrentUserPayer ? "justify-end" : "justify-start"}`}>
             {/* Avatar for other user */}
             {!isCurrentUserPayer && (
                 <img

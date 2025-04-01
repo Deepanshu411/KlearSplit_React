@@ -39,7 +39,7 @@ function App() {
 
   if (loading) {
     return (
-      <Box className="min-h-screen flex items-center justify-center px-[10%]">
+      <Box className="min-h-screen flex items-center justify-center px-[10%] gap-5">
         <Box className="hidden md:flex w-1/2 h-full text-white flex-col items-center justify-center p-10 bg-[url('/bgsvg.svg')] bg-no-repeat bg-contain bg-center">
           <h1 className="font-protest font-bold text-6xl mb-10 text-white p-10">
             KLEARSPLIT
