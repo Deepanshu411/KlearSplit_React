@@ -67,8 +67,9 @@ const getNewStatus = (friendTag1, friendTag2, status) => {
  *
  * @returns {number} - The calculated debtor amount.
  */
-const calculateDebtorAmount = (expenseData, existingExpense = null) => {
+const calculateDebtorAmount = (userId, expenseData, existingExpense = null) => {
   const totalAmount = parseFloat(expenseData.total_amount) || parseFloat(existingExpense.total_amount);
+  const debtorShare = userId === expenseData.payer_id ? expenseData.participant2_share : expenseData.participant1_share;
 
   Object.assign(expenseData, { "split_type": expenseData.split_type || existingExpense.split_type });
 
@@ -80,7 +81,7 @@ const calculateDebtorAmount = (expenseData, existingExpense = null) => {
       // Validate that participant shares add up to total amount and debtor share matches
       if (
         !(
-          parseFloat(expenseData.participant1_share) + parseFloat(expenseData.participant2_share) === totalAmount && (expenseData.debtor_share === expenseData.participant1_share || expenseData.participant2_share)
+          parseFloat(expenseData.participant1_share) + parseFloat(expenseData.participant2_share) === totalAmount
         )
       ) {
         throw new ErrorHandler(
@@ -89,12 +90,12 @@ const calculateDebtorAmount = (expenseData, existingExpense = null) => {
         );
       }
 
-      return parseFloat(expenseData.debtor_share);
+      return parseFloat(debtorShare);
     case "PERCENTAGE":
       // Validate that percentages add up to 100 and debtor share matches
       if (
         !(
-          parseFloat(expenseData.participant1_share) + parseFloat(expenseData.participant2_share) === 100 && (expenseData.debtor_share === expenseData.participant1_share || expenseData.participant2_share)
+          parseFloat(expenseData.participant1_share) + parseFloat(expenseData.participant2_share) === 100
         )
       ) {
         throw new ErrorHandler(
@@ -103,7 +104,7 @@ const calculateDebtorAmount = (expenseData, existingExpense = null) => {
         );
       }
 
-      return (totalAmount * parseFloat(expenseData.debtor_share)) / 100;
+      return (totalAmount * parseFloat(debtorShare)) / 100;
     case "SETTLEMENT":
       return totalAmount; // The full amount is used for settlement
     default:

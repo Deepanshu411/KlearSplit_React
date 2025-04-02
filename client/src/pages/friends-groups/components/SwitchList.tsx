@@ -5,6 +5,7 @@ interface SwitchListProps {
     title: string;
     selected: string;
     setSelected: (value: string) => void;
+    requestsLength: number;
 }
 
 const StyledBadge = styled(Badge)<BadgeProps>(() => ({
@@ -15,7 +16,7 @@ const StyledBadge = styled(Badge)<BadgeProps>(() => ({
     },
 }));
 
-const SwitchList: React.FC<SwitchListProps> = ({ title, selected, setSelected }) => {
+const SwitchList: React.FC<SwitchListProps> = ({ title, selected, setSelected, requestsLength }) => {
     return (
         <div className="items-center justify-center w-full">
             <ButtonGroup className="items-center justify-center w-full" size="large" variant="contained">
@@ -39,7 +40,7 @@ const SwitchList: React.FC<SwitchListProps> = ({ title, selected, setSelected })
                             color: "white",
                         },
                     }}>
-                    <StyledBadge badgeContent={1} color="secondary">
+                    <StyledBadge badgeContent={requestsLength} color="secondary">
                         Requests
                     </StyledBadge>
                 </Button>

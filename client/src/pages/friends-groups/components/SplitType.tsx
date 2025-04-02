@@ -1,108 +1,256 @@
-import { ModalDialog } from "@mui/joy"
-import { Modal, DialogTitle, Box, Typography, Avatar, Divider, ListItem, ListItemAvatar, ListItemButton, ListItemText, ButtonGroup } from "@mui/material"
-import Button from '@mui/joy/Button';
-import { motion } from "framer-motion"
+import { ModalDialog } from "@mui/joy";
+import {
+  Modal,
+  DialogTitle,
+  Box,
+  Typography,
+  Avatar,
+  Divider,
+  ListItem,
+  ListItemAvatar,
+  ListItemButton,
+  ListItemText,
+  ButtonGroup,
+  TextField,
+} from "@mui/material";
+import Button from "@mui/joy/Button";
+import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 
 interface SplitTypeProps {
-    open: boolean;
-    participants: User[];
-    handleSplitTypeClose: () => void;
-    splitType: "EQUAL" | "UNEQUAL" | "PERCENTAGE";
-    setSplitType: (splitType: "EQUAL" | "UNEQUAL" | "PERCENTAGE") => void;
+  open: boolean;
+  participants: User[];
+  totalAmount: number;
+  handleSplitTypeClose: () => void;
+  splitType: "EQUAL" | "UNEQUAL" | "PERCENTAGE";
+  setSplitType: (splitType: "EQUAL" | "UNEQUAL" | "PERCENTAGE") => void;
+  equalShares: { [key: string]: number };
+  setEqualShares: React.Dispatch<React.SetStateAction<{ [key: string]: number }>>;
+  unequalShares: { [key: string]: number };
+  setUnequalShares: React.Dispatch<React.SetStateAction<{ [key: string]: number }>>;
+  percentageShares: { [key: string]: number };
+  setPercentageShares: React.Dispatch<React.SetStateAction<{ [key: string]: number }>>;
 }
 
-const SplitType: React.FC<SplitTypeProps> = ({ open, participants, handleSplitTypeClose, splitType, setSplitType }) => {
-    const handleViewChange = (view: "EQUAL" | "UNEQUAL" | "PERCENTAGE") => setSplitType(view);
-    return (
-        <Modal hideBackdrop={true} open={open} onClose={() => handleSplitTypeClose()}>
-            <motion.div
-                initial={{ x: 0, opacity: 0 }}
-                animate={{ x: 200, opacity: 1 }}
-                exit={{ x: 0, opacity: 0 }}
-                transition={{ duration: 0.5, ease: "easeInOut" }}
-                style={{
-                    height: "100%",
-                    zIndex: 9
-                }}
+const SplitType: React.FC<SplitTypeProps> = ({
+  open,
+  participants,
+  totalAmount,
+  handleSplitTypeClose,
+  splitType,
+  setSplitType,
+  equalShares,
+  setEqualShares,
+  unequalShares,
+  setUnequalShares,
+  percentageShares,
+  setPercentageShares,
+}) => {
+  const [isValid, setIsValid] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    switch (splitType) {
+      case "EQUAL":
+        const equalShare = totalAmount / participants.length;
+        const updatedShares = participants.reduce((acc, participant) => {
+          acc[participant.user_id] = equalShare;
+          return acc;
+        }, {} as { [key: string]: number });
+        setEqualShares(updatedShares);
+        break;
+      case "UNEQUAL":
+        setUnequalShares(
+          participants.reduce((acc, participant) => {
+            acc[participant.user_id] = 0;
+            return acc;
+          }, {} as { [key: string]: number })
+        );
+        break;
+      case "PERCENTAGE":
+        setPercentageShares(
+          participants.reduce((acc, participant) => {
+            acc[participant.user_id] = 0;
+            return acc;
+          }, {} as { [key: string]: number })
+        );
+        break;
+      default:
+        break;
+    }
+  }, [splitType, participants, totalAmount]);
+
+  useEffect(() => {
+    let total = 0;
+    switch (splitType) {
+      case "UNEQUAL":
+        total = Object.values(unequalShares).reduce(
+          (sum, value) => sum + value,
+          0
+        );
+        setIsValid(total === totalAmount);
+        setErrorMessage(
+          total !== totalAmount ? "Total must match the amount" : ""
+        );
+        break;
+      case "PERCENTAGE":
+        total = Object.values(percentageShares).reduce(
+          (sum, value) => sum + value,
+          0
+        );
+        setIsValid(total === 100);
+        setErrorMessage(total !== 100 ? "Total percentage must be 100" : "");
+        break;
+      default:
+        setIsValid(true);
+        setErrorMessage("");
+        break;
+    }
+  }, [unequalShares, percentageShares, splitType, totalAmount]);
+
+  const handleViewChange = (view: "EQUAL" | "UNEQUAL" | "PERCENTAGE") =>
+    setSplitType(view);
+
+  const handleChange = (userId: string, value: number) => {
+    const newValue = Math.max(0, value);
+    if (splitType === "UNEQUAL") {
+      setUnequalShares((prev) => ({ ...prev, [userId]: newValue }));
+    } else if (splitType === "PERCENTAGE") {
+      setPercentageShares((prev) => ({ ...prev, [userId]: newValue }));
+    }
+  };
+
+  const totalAllocated =
+    splitType === "UNEQUAL"
+      ? Object.values(unequalShares).reduce(
+          (sum, value) => sum - value,
+          totalAmount
+        )
+      : Object.values(percentageShares).reduce(
+          (sum, value) => sum - value,
+          100
+        );
+
+  return (
+    <Modal hideBackdrop={true} open={open} onClose={handleSplitTypeClose}>
+      <motion.div
+        initial={{ x: 0, opacity: 0 }}
+        animate={{ x: 200, opacity: 1 }}
+        exit={{ x: 0, opacity: 0 }}
+        transition={{ duration: 0.5, ease: "easeInOut" }}
+        style={{ height: "100%", zIndex: 9 }}
+      >
+        <ModalDialog
+          layout="center"
+          sx={{
+            backgroundColor: "white",
+            position: "fixed",
+            minWidth: "25%",
+            padding: 0,
+            border: "none",
+            zIndex: 9,
+          }}
+        >
+          <DialogTitle
+            className="bg-[#3674B5] text-center text-white"
+            sx={{ borderRadius: "7px 7px 0px 0px" }}
+          >
+            Choose Split Option
+          </DialogTitle>
+          <Box className="w-full p-3">
+            <ButtonGroup
+              variant="outlined"
+              className="grid"
+              aria-label="split-options"
             >
-                <ModalDialog layout="center"
-                    sx={{
-                        backgroundColor: "white",
-                        position: "fixed",
-                        top: "10",
-                        // minHeight: "50%",
-                        minWidth: "25%",
-                        padding: 0,
-                        border: "none",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 0,
-                        zIndex: 9
-                    }}
+              {(["EQUAL", "UNEQUAL", "PERCENTAGE"] as const).map((option) => (
+                <Button
+                  key={option}
+                  onClick={() => handleViewChange(option)}
+                  variant={splitType === option ? "solid" : "outlined"}
                 >
-                    {/* <ModalClose onClick={() => handleViewExpensesClose()} /> */}
-                    <DialogTitle className="bg-[#3674B5] text-center text-white" sx={{ borderRadius: "7px 7px 0px 0px" }}>Choose Split Option</DialogTitle>
-                    <Box className="w-full self-start rounded p-3">
-                        <ButtonGroup variant="outlined" className="grid" aria-label="Basic button group">
-                            <Button onClick={() => handleViewChange("EQUAL")} variant={splitType === "EQUAL" ? "solid" : "outlined"}
-                                sx={{ borderRadius: "4px 0px 0px 0px" }}
-                            >Equal</Button>
-                            < Button onClick={() => handleViewChange("UNEQUAL")} variant={splitType === "UNEQUAL" ? "solid" : "outlined"}
-                                sx={{ borderRadius: "0px 0px 0px 0px" }}
-                            >
-                                Unequal
-                            </Button>
-                            < Button onClick={() => handleViewChange("PERCENTAGE")} variant={splitType === "PERCENTAGE" ? "solid" : "outlined"}
-                                sx={{ borderRadius: "0px 4px 0px 0px" }}
-                            >
-                                Percentage
-                            </Button>
-                        </ButtonGroup>
-                        <Divider />
-                    </Box>
-                    <Box className="rounded bg-[white] flex flex-col">
-                        {
-                            participants.map((participant) => {
-                                return (
-                                    <>
-                                        <ListItem disablePadding alignItems="flex-start" key={participant.user_id}>
-                                            <ListItemButton sx={{ paddingX: 1 }}>
-                                                <ListItemAvatar sx={{ minWidth: 32, paddingRight: 1 }}>
-                                                    <Avatar alt="Remy Sharp" src="/static/images/avatar/1.jpg" sx={{ width: 32, height: 32 }} />
-                                                </ListItemAvatar>
-                                                <ListItemText
-                                                    primary={
-                                                        <Box className="flex justify-between">
-                                                            <Box>{`${participant.first_name} ${participant.last_name || ""}`.trim()}</Box>
-                                                        </Box>
-                                                    }
-                                                    secondary={
-                                                        <Typography
-                                                            component="span"
-                                                            variant="body2"
-                                                            sx={{ color: 'text.primary', display: 'inline' }}
-                                                        >
-                                                            {participant.email}
-                                                        </Typography>
-                                                    }
-                                                />
-                                            </ListItemButton>
-                                        </ListItem>
-                                        <Divider />
-                                    </>
-                                )
-                            })
-                        }
-                        <Box className="flex justify-end items-center p-3">
-                            <Button onClick={handleSplitTypeClose}>
-                                Cancel
-                            </Button>
+                  {option}
+                </Button>
+              ))}
+            </ButtonGroup>
+            <Divider />
+          </Box>
+          <Box className="bg-white flex flex-col">
+            {participants.map((participant) => (
+              <>
+                <ListItem
+                  disablePadding
+                  alignItems="flex-start"
+                  key={participant.user_id}
+                >
+                  <ListItemButton sx={{ paddingX: 1 }}>
+                    <ListItemAvatar sx={{ minWidth: 32, paddingRight: 1 }}>
+                      <Avatar
+                        alt={participant.first_name}
+                        src="/static/images/avatar/1.jpg"
+                        sx={{ width: 32, height: 32 }}
+                      />
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Box className="flex justify-between">
+                          {participant.first_name} {participant.last_name}
                         </Box>
-                    </Box>
-                </ModalDialog>
-            </motion.div>
-        </Modal>
-    )
-}
+                      }
+                      secondary={
+                        <Typography
+                          variant="body2"
+                          sx={{ color: "text.primary" }}
+                        >
+                          {participant.email}
+                        </Typography>
+                      }
+                    />
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={
+                        splitType === "EQUAL"
+                          ? equalShares[participant.user_id]
+                          : splitType === "UNEQUAL"
+                          ? unequalShares[participant.user_id] || ""
+                          : percentageShares[participant.user_id] || ""
+                      }
+                      disabled={splitType === "EQUAL"}
+                      onChange={(e) =>
+                        handleChange(
+                          participant.user_id,
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      className={
+                        splitType === "EQUAL" ? "cursor-not-allowed" : ""
+                      }
+                      sx={{ maxWidth: 80 }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+                <Divider />
+              </>
+            ))}
+            <Typography align="center" className="p-3">
+              {totalAllocated} out of{" "}
+              {splitType === "PERCENTAGE" ? 100 : totalAmount} left
+            </Typography>
+            {errorMessage && (
+              <Typography color="error" align="center">
+                {errorMessage}
+              </Typography>
+            )}
+            <Box className="flex justify-end items-center p-3">
+              <Button onClick={handleSplitTypeClose}>Cancel</Button>
+              <Button disabled={!isValid} onClick={handleSplitTypeClose}>Submit</Button>
+            </Box>
+          </Box>
+        </ModalDialog>
+      </motion.div>
+    </Modal>
+  );
+};
 
-export default SplitType
+export default SplitType;

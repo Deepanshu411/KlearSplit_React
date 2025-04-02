@@ -334,7 +334,7 @@ class FriendService {
 
     try {
       // Calculate debtor amount for the expense
-      const debtorAmount = calculateDebtorAmount(expenseData);
+      const debtorAmount = calculateDebtorAmount(userId, expenseData);
 
       Object.assign(expenseData, { "debtor_amount": debtorAmount });
 

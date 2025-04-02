@@ -18,11 +18,19 @@ import {
 import { Delete, Edit, Download } from "@mui/icons-material";
 import { toast } from "sonner";
 import { deleteExpense, fetchAllExpenses } from "../friends/services";
+import isUserPayer from "../utils/getGroupPayer";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
+import { deleteExpenseAndSettlement, fetchAllExpensesAndSettlements } from "../groups/services";
+import { isGroupExpense } from "../utils/getExpenseType";
+import isFriendsConversation from "../utils/getConversationType";
+import getFullNameAndImage from "../utils/getFullNameAndImage";
 
 interface ViewExpensesDialogProps {
-  friend: FriendData | null;
+  chat: FriendData | GroupData | null;
   open: boolean;
   onClose: () => void;
+  groupMembers?: GroupMemberData[];
 }
 
 const formatDate = (dateString: string) => {
@@ -34,36 +42,74 @@ const formatDate = (dateString: string) => {
 };
 
 const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
-  friend,
+  chat,
   open,
   onClose,
+  groupMembers
 }) => {
-  const [expenses, setExpenses] = useState<ExpenseData[]>([]);
+  const user = useSelector((store: RootState) => store.auth.user);
+  const [friendExpenses, setFriendExpenses] = useState<ExpenseData[]>([]);
+  const [groupExpenses, setGroupExpenses] = useState<
+    (GroupExpenseData | GroupSettlementData)[]
+  >([]);
+
   const [loading, setLoading] = useState(true);
   const [deleteLoader, setDeleteLoader] = useState<string | null>(null);
 
   useEffect(() => {
     const getAllExpenses = async () => {
-      if (open) {
-        setLoading(true);
-        try {
-          const data = await fetchAllExpenses(friend?.conversation_id!);
-          setExpenses(data);
-        } catch (error) {
-          toast.error("Failed to load expenses");
-        } finally {
-          setLoading(false);
+      if (!open || !chat) return; 
+      setLoading(true);
+      try {
+        if (isFriendsConversation(chat)) {
+          const data = await fetchAllExpenses(
+            chat?.conversation_id!
+          );
+          setFriendExpenses(data);
+          setGroupExpenses([]); // Reset group expenses
+        } else {
+          const data = await fetchAllExpensesAndSettlements(
+            chat?.group_id!
+          );
+          const expensesWithPayer = data.map((expense) => {
+            const payer = groupMembers?.find((member) => expense.payer_id === member.group_membership_id);
+            console.log(payer);
+            return { ...expense, payer: getFullNameAndImage(payer) }
+          })
+          setGroupExpenses(expensesWithPayer);
+          setFriendExpenses([]); // Reset friend expenses
         }
+      } catch (error) {
+        toast.error("Failed to load expenses");
+      } finally {
+        setLoading(false);
       }
-    }
+    };
     getAllExpenses();
-  }, [open, friend?.conversation_id!]);
+  }, [open, (chat as FriendData)?.conversation_id!]);
 
   const handleDelete = async (conversationId: string, expenseId: string) => {
     setDeleteLoader(expenseId);
     try {
       await deleteExpense(conversationId, expenseId);
-      setExpenses((prev) => prev.filter((e) => e.friend_expense_id !== expenseId));
+      setFriendExpenses((prev) =>
+        prev.filter((e) => e.friend_expense_id !== expenseId)
+      );
+      toast.success("Expense deleted successfully");
+    } catch {
+      toast.error("Failed to delete expense");
+    } finally {
+      setDeleteLoader(null);
+    }
+  };
+  
+  const handleGroupExpenseDelete = async (conversationId: string, expenseId: string, isExpense: boolean) => {
+    setDeleteLoader(expenseId);
+    try {
+      await deleteExpenseAndSettlement(conversationId, isExpense, expenseId);
+      setGroupExpenses((prev) =>
+        prev.filter((e) => isGroupExpense(e) ? e.group_expense_id !== expenseId : e.group_settlement_id !== expenseId)
+      );
       toast.success("Expense deleted successfully");
     } catch {
       toast.error("Failed to delete expense");
@@ -98,14 +144,22 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {expenses.map((expense) => (
-                  <TableRow key={expense.friend_expense_id}>
+                {isFriendsConversation(chat!) ? friendExpenses.map((expense) => (
+                  <TableRow
+                    key={
+                      expense.friend_expense_id
+                    }
+                  >
                     <TableCell>{formatDate(expense.createdAt)}</TableCell>
                     <TableCell>{expense.expense_name}</TableCell>
                     <TableCell>₹{expense.total_amount}</TableCell>
-                    <TableCell>{expense.payer}</TableCell>
+                    <TableCell>
+                      {expense.payer}
+                    </TableCell>
                     <TableCell>{expense.split_type}</TableCell>
-                    <TableCell>₹{expense.debtor_amount}</TableCell>
+                    <TableCell>
+                      ₹{expense.debtor_amount}
+                    </TableCell>
                     <TableCell>{expense.description || "--"}</TableCell>
                     <TableCell className="flex flex-row">
                       <IconButton size="small" color="primary">
@@ -114,10 +168,60 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
                       <IconButton
                         size="small"
                         color="error"
-                        onClick={() => handleDelete(friend?.conversation_id!, expense.friend_expense_id)}
+                        onClick={() =>
+                          handleDelete(
+                            (chat as FriendData)?.conversation_id!,
+                            expense.friend_expense_id
+                          )
+                        }
                         disabled={!!deleteLoader}
                       >
-                        {deleteLoader === expense.friend_expense_id ? <CircularProgress size={20} /> : <Delete />}
+                        {deleteLoader === expense.friend_expense_id ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <Delete />
+                        )}
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                )) : groupExpenses.map((expense) => (
+                  <TableRow
+                    key={
+                      isGroupExpense(expense) ? expense.group_expense_id : expense.group_settlement_id
+                    }
+                  >
+                    <TableCell>{formatDate(expense.createdAt)}</TableCell>
+                    <TableCell>{isGroupExpense(expense) ? expense.expense_name : "Settlement"}</TableCell>
+                    <TableCell>₹{isGroupExpense(expense) ? expense.total_amount : expense.settlement_amount}</TableCell>
+                    <TableCell>
+                      {expense.payer.fullName}
+                    </TableCell>
+                    <TableCell>{isGroupExpense(expense) ? expense.split_type: "--"}</TableCell>
+                    <TableCell>
+                      ₹{isGroupExpense(expense) ? isUserPayer(user?.user_id!, expense.payer_id) ? expense.total_debt_amount : expense.user_debt : expense.settlement_amount}
+                    </TableCell>
+                    <TableCell>{expense.description || "--"}</TableCell>
+                    <TableCell className="flex flex-row">
+                      <IconButton size="small" color="primary">
+                        <Edit />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() =>
+                          handleGroupExpenseDelete(
+                            (chat as GroupData)?.group_id!,
+                            isGroupExpense(expense) ? expense.group_expense_id : expense.group_settlement_id,
+                            isGroupExpense(expense),
+                          )
+                        }
+                        disabled={!!deleteLoader}
+                      >
+                        {deleteLoader === (isGroupExpense(expense) ? expense.group_expense_id : expense.group_settlement_id) ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <Delete />
+                        )}
                       </IconButton>
                     </TableCell>
                   </TableRow>

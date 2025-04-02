@@ -103,3 +103,21 @@ interface FetchResult {
     expenses: Expense[];
     combined: CombinedView[];
 }
+
+interface SettlementData {
+    split_type: string;
+    total_amount: string;
+}
+
+interface ExpenseInput {
+    expense_name: string;
+    total_amount: string;
+    description?: string;
+    split_type: string;
+    payer_id: string;
+    participant1_share: string;
+    participant2_share: string;
+    receipt?: File;
+    debtor_share: string;
+    debtor_id: string;
+}
