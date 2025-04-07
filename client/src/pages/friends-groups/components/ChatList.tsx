@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { getBalanceAsNumber } from "../utils/getBalanceAsNumber.ts"; // Utility function for balance conversion
 import isFriendsConversation from "../utils/isFriendsConversations.ts";
 
@@ -7,6 +8,12 @@ interface ChatListProps {
 }
 
 const ChatList: React.FC<ChatListProps> = ({ chats, onSelectConversation }) => {
+  useEffect(() => {
+    const chatList = document.querySelector(".chat-list");
+    if (chatList) {
+      chatList.scrollTop = chatList.scrollHeight;
+    }
+  }, [chats]);
   return (
     <div className="flex flex-col justify-start items-center w-full min-h-[60vh] max-h-[60vh] overflow-y-auto">
       {isFriendsConversation(chats)
@@ -39,7 +46,7 @@ const ChatList: React.FC<ChatListProps> = ({ chats, onSelectConversation }) => {
                     : "text-green-600"
                 }`}
               >
-                ₹{friend.balance_amount}
+                ₹{Math.abs(parseFloat(friend.balance_amount)).toFixed(2)}
               </h6>
             </div>
           ))
@@ -71,7 +78,7 @@ const ChatList: React.FC<ChatListProps> = ({ chats, onSelectConversation }) => {
                     : "text-green-600"
                 }`}
               >
-                ₹{group.balance_amount}
+                ₹{Math.abs(parseFloat(group.balance_amount)).toFixed(2)}
               </h6>
             </div>
           ))}

@@ -105,7 +105,11 @@ const GroupsPage = () => {
           selectedGroup ? "hidden" : "flex flex-col"
         }`}
       >
-        <SearchBar onSearch={handleSearch} />
+        <SearchBar
+          onSearch={handleSearch}
+          chats={filteredGroups}
+          setChats={(newChats) => setGroups(newChats as GroupData[])}
+        />
         <SwitchList
           title="Groups"
           selected={selected}
@@ -116,7 +120,9 @@ const GroupsPage = () => {
         />
         <ChatList
           chats={filteredGroups}
-          onSelectConversation={(group) => handleSelectConversation(group as GroupData)}
+          onSelectConversation={(group) =>
+            handleSelectConversation(group as GroupData)
+          }
         />
       </div>
 
@@ -133,6 +139,8 @@ const GroupsPage = () => {
             archiveStatus={archiveStatus}
             setArchiveStatus={setArchiveStatus}
             groupMembers={groupMembers}
+            setCombinedView={setCombinedView}
+            setExpenses={setExpenses}
           />
           <hr className="border-t-4 border-gray-400" />
           <ChatWindow
@@ -148,6 +156,7 @@ const GroupsPage = () => {
           <hr className="border-t-4 border-gray-400" />
           <MessageInput
             chat={selectedGroup}
+            setSelectedChat={(chat) => setSelectedGroup(chat as GroupData)}
             blockStatus={blockStatus}
             setExpenses={setExpenses}
             setCombinedView={setCombinedView}

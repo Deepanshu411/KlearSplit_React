@@ -6,11 +6,6 @@ const sortByCreatedAt = (data: (CombinedMessage | CombinedExpense)[]) => {
   return data.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
 };
 
-export const searchUser = async (query: string) => {
-  const user = await axiosInstance.get(`${API_URLS.user.getUsers}/${query}`);
-  return user.data.data;
-};
-
 export const addFriend = async (email: string) => {
   const friend = await axiosInstance.post(API_URLS.friends.addFriend, {
     email,

@@ -30,7 +30,7 @@ const ExpenseItem: React.FC<ExpenseItemProp> = ({ expense, isCurrentUserPayer, i
             {/* Avatar for other user */}
             {!isCurrentUserPayer && (
                 <img
-                    src={imageUrl || "/profile.png"}
+                    src={imageUrl ?? "/static/images/avatar/1.jpg"}
                     alt="avatar"
                     className="rounded-full inline-flex self-end mr-3 shadow-md"
                     width="32"
@@ -92,7 +92,7 @@ const ExpenseItem: React.FC<ExpenseItemProp> = ({ expense, isCurrentUserPayer, i
             {/* Avatar for current user */}
             {isCurrentUserPayer && (
                 <img
-                    src={currentUserImageUrl || "/profile.png"}
+                    src={currentUserImageUrl ?? "/static/images/avatar/1.jpg"}
                     alt="avatar"
                     className="rounded-full inline-flex self-end ml-3 shadow-md"
                     width="32"

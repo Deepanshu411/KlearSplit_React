@@ -6,6 +6,16 @@ export const getGroups = async () => {
   return response.data.data;
 };
 
+export const createGroup = async (
+  groupData: CreateGroupData | FormData,
+): Promise<Group> => {
+  const response = await axiosInstance.post<CreateGroupResponse>(
+    `${API_URLS.groups.createGroup}`,
+    groupData,
+  );
+  return response.data.data;
+}
+
 export const fetchGroupMembers = async (groupId: string) => {
     const response = await axiosInstance.get<GroupResponse>(
       `${API_URLS.groups.group}/${groupId}`,

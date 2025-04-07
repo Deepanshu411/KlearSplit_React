@@ -30,13 +30,6 @@ interface CreateGroupResponse {
   data: Group;
 }
 
-interface SearchedUser {
-  user_id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-}
-
 interface SearchedUserResponse {
   success: string;
   message: string;

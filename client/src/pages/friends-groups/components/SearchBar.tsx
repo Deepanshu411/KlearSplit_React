@@ -1,22 +1,35 @@
-import { Search, PersonAddAlt1Sharp } from "@mui/icons-material";
+import { Search, PersonAddAlt1Sharp, GroupAdd } from "@mui/icons-material";
 import { Button, TextField, InputAdornment, Tooltip } from "@mui/material";
 import AddFriend from "../friends/AddFriend";
 import { useState } from "react";
+import isFriendsConversations from "../utils/isFriendsConversations";
+import CreateGroup from "../groups/CreateGroup";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
+  chats: FriendData[] | GroupData[];
+  setChats: React.Dispatch<React.SetStateAction<FriendData[] | GroupData[]>>;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
-  const [open, setOpen] = useState(false);
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch, chats, setChats }) => {
+  const [openAddFriend, setOpenAddFriend] = useState(false);
+  const [openCreateGroup, setOpenCreateGroup] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleOpenDialog = () => {
-    setOpen(true);
+  const handleOpenAddFriendDialog = () => {
+    setOpenAddFriend(true);
   };
 
-  const handleCloseDialog = () => {
-    setOpen(false);
+  const handleCloseAddFriendDialog = () => {
+    setOpenAddFriend(false);
+  };
+  
+  const handleOpenCreateGroupDialog = () => {
+    setOpenCreateGroup(true);
+  };
+
+  const handleCloseCreateGroupDialog = () => {
+    setOpenCreateGroup(false);
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,12 +56,17 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
           ),
         }}
       />
-      <Tooltip title="Add Friend" arrow>
-        <Button className="h-full rounded-3xl" variant="contained" color="primary" onClick={handleOpenDialog}>
-          <PersonAddAlt1Sharp />
+      <Tooltip title={isFriendsConversations(chats) ? "Add Friend" : "Create Group"} arrow>
+        <Button className="h-full rounded-3xl" variant="contained" color="primary" onClick={isFriendsConversations(chats) ? handleOpenAddFriendDialog : handleOpenCreateGroupDialog}>
+          {isFriendsConversations(chats) ? <PersonAddAlt1Sharp /> : <GroupAdd />}
         </Button>
       </Tooltip>
-      <AddFriend open={open} handleClose={handleCloseDialog} />
+      <AddFriend open={openAddFriend} handleClose={handleCloseAddFriendDialog} />
+      <CreateGroup
+        open={openCreateGroup}
+        handleClose={handleCloseCreateGroupDialog}
+        setGroups={isFriendsConversations(chats) ? undefined : (setChats as React.Dispatch<React.SetStateAction<GroupData[]>>)}
+      />
     </div>
   );
 };

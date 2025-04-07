@@ -106,7 +106,11 @@ const FriendsPage = () => {
           selectedFriend ? "hidden" : "flex flex-col"
         }`}
       >
-        <SearchBar onSearch={handleSearch} />
+        <SearchBar
+          onSearch={handleSearch}
+          chats={filteredFriends}
+          setChats={(newChats) => setFriends(newChats as FriendData[])}
+        />
         <SwitchList
           title="Friends"
           selected={selected}
@@ -133,6 +137,8 @@ const FriendsPage = () => {
             setBlockStatus={setBlockStatus}
             archiveStatus={archiveStatus}
             setArchiveStatus={setArchiveStatus}
+            setExpenses={setExpenses}
+            setCombinedView={setCombinedView}
           />
           <hr className="border-t-4 border-gray-400" />
           <ChatWindow
@@ -148,6 +154,7 @@ const FriendsPage = () => {
           <hr className="border-t-4 border-gray-400" />
           <MessageInput
             chat={selectedFriend}
+            setSelectedChat={(chat) => setSelectedFriend(chat as FriendData | null)}
             blockStatus={blockStatus}
             setExpenses={setExpenses}
             setCombinedView={setCombinedView}

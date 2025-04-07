@@ -12,6 +12,7 @@ import SplitType from "./SplitType";
 import { addExpense } from "../friends/services";
 import { toast } from "sonner";
 import isFriendsConversation from "../utils/getConversationType";
+import ConfirmDialog from "../../../components/shared/ConfirmDialog";
 
 const VisuallyHiddenInput = styled("input")`
   clip: rect(0 0 0 0);
@@ -28,6 +29,9 @@ const VisuallyHiddenInput = styled("input")`
 interface AddExpenseProps {
   open: boolean;
   chat: FriendData | GroupData;
+  setSelectedChat: React.Dispatch<
+    React.SetStateAction<FriendData | GroupData | null>
+  >;
   handleAddExpensesClose: () => void;
   //   setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
   setExpenses: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
@@ -40,10 +44,11 @@ interface AddExpenseProps {
 const AddExpense: React.FC<AddExpenseProps> = ({
   open,
   chat,
+  setSelectedChat,
   handleAddExpensesClose,
   setExpenses,
   setCombinedView,
-  chatMembers
+  chatMembers,
 }) => {
   const user = useSelector((store: RootState) => store.auth.user);
   const [participants, setParticipants] = useState<User[] | []>([]);
@@ -61,10 +66,10 @@ const AddExpense: React.FC<AddExpenseProps> = ({
 
   useEffect(() => {
     if (isFriendsConversation(chat)) {
-        setParticipants([user!, { ...chat.friend, phone: "" }]);
+      setParticipants([user!, { ...chat.friend, phone: "" }]);
     } else {
-        // setParticipants(chatMembers);
-        console.log(chatMembers)
+      // setParticipants(chatMembers);
+      console.log(chatMembers);
     }
   }, []);
 
@@ -87,6 +92,20 @@ const AddExpense: React.FC<AddExpenseProps> = ({
   const [payerDialogOpen, setPayerDialogOpen] = useState(false);
   const [splitTypeOpen, setSplitTypeOpen] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
+  const [openConfirm, setOpenConfirm] = useState(false);
+
+  const handleConfirm = () => {
+    setOpenConfirm(false);
+    handleAddExpensesClose();
+    setPayer(null);
+  };
+
+  const handleCancel = () => {
+    setOpenConfirm(false);
+  };
+  const onAddExpenseClose = () => {
+    setOpenConfirm(true);
+  };
   const handlePayerDialogOpen = () => {
     setPayerDialogOpen(true);
   };
@@ -179,10 +198,14 @@ const AddExpense: React.FC<AddExpenseProps> = ({
     });
 
     try {
-      const newExpense = await addExpense((chat as FriendData).conversation_id, formData);
+      const newExpense = await addExpense(
+        (chat as FriendData).conversation_id,
+        formData
+      );
       toast.success("Expense added successfully!");
       setExpenses((prev) => [...prev, newExpense]);
       setCombinedView((prev) => [...prev, newExpense]);
+      handleAddExpensesClose();
     } catch (error) {
       toast.error("Something went wrong please try again later.");
     }
@@ -192,6 +215,12 @@ const AddExpense: React.FC<AddExpenseProps> = ({
     setExpenseInfo((prev) => ({ ...prev, [key]: value }));
   return (
     <>
+      <ConfirmDialog
+        open={openConfirm}
+        title="Close Add Expense"
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
       <SplitType
         open={splitTypeOpen}
         participants={participants}
@@ -330,7 +359,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({
               <Box className="flex justify-between items-center">
                 <Button>Bulk Insertion of Expenses</Button>
                 <Box className="flex gap-3">
-                  <Button onClick={handleAddExpensesClose}>Cancel</Button>
+                  <Button onClick={onAddExpenseClose}>Cancel</Button>
                   <Button onClick={handleSubmit} disabled={!isFormValid}>
                     Submit
                   </Button>

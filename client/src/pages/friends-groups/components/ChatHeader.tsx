@@ -1,7 +1,7 @@
 import { ArrowBack, MoreVert } from "@mui/icons-material";
 import { IconButton, Select, MenuItem, Menu } from "@mui/material";
 import ViewExpensesDialog from "./ViewExpensesDialog";
-import { useState } from "react";
+import React, { useState } from "react";
 import Settlement from "./Settlement";
 import { toast } from "sonner";
 import { archiveBlockFriend } from "../friends/services";
@@ -12,12 +12,18 @@ interface ChatHeaderProps {
   currentView: "All" | "Expenses" | "Messages";
   setCurrentView: (value: "All" | "Expenses" | "Messages") => void;
   chat: FriendData | GroupData | null;
-  setSelectedChat: (chat: FriendData | GroupData | null) => void;
+  setSelectedChat: React.Dispatch<
+    React.SetStateAction<FriendData | GroupData | null>
+  >;
   blockStatus: "BLOCK" | "UNBLOCK";
   setBlockStatus: (status: "BLOCK" | "UNBLOCK") => void;
   archiveStatus: "ARCHIVE" | "UNARCHIVE";
   setArchiveStatus: (status: "ARCHIVE" | "UNARCHIVE") => void;
   groupMembers?: GroupMemberData[];
+  setExpenses: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setCombinedView: React.Dispatch<
+    React.SetStateAction<(CombinedMessage | CombinedExpense)[]>
+  >;
 }
 
 const ITEM_HEIGHT = 48;
@@ -32,16 +38,26 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   archiveStatus,
   setArchiveStatus,
   groupMembers,
+  setExpenses,
+  setCombinedView,
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const [settlementOpen, setSettlementOpen] = useState(false);
   const [openViewExpenses, setOpenViewExpenses] = useState(false);
-  const options = [
+  const optionsFriends = [
     "Settle Up",
     "View Expenses",
     blockStatus === "BLOCK" ? "Block" : "Unblock",
     archiveStatus === "ARCHIVE" ? "Archive" : "Unarchive",
+  ];
+  const optionsGroups = [
+    "Group Details",
+    "Add Members",
+    "Settle Up",
+    "View Expenses",
+    "Block Group",
+    "Leave Group",
   ];
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -107,6 +123,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       <Settlement
         open={settlementOpen}
         handleSettlementClose={handleCloseSettlement}
+        chat={chat}
+        setCombinedView={setCombinedView}
+        setExpenses={setExpenses}
       />
       <ViewExpensesDialog
         chat={chat}
@@ -162,15 +181,25 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               },
             }}
           >
-            {options.map((option) => (
-              <MenuItem
-                key={option}
-                selected={option === "Pyxis"}
-                onClick={() => handleMenuClick(option)}
-              >
-                {option}
-              </MenuItem>
-            ))}
+            {isFriendsConversation(chat!)
+              ? optionsFriends.map((option) => (
+                  <MenuItem
+                    key={option}
+                    selected={option === "Pyxis"}
+                    onClick={() => handleMenuClick(option)}
+                  >
+                    {option}
+                  </MenuItem>
+                ))
+              : optionsGroups.map((option) => (
+                  <MenuItem
+                    key={option}
+                    selected={option === "Pyxis"}
+                    onClick={() => handleMenuClick(option)}
+                  >
+                    {option}
+                  </MenuItem>
+                ))}
           </Menu>
         </div>
       </div>
