@@ -12,17 +12,24 @@ interface ChatHeaderProps {
   currentView: "All" | "Expenses" | "Messages";
   setCurrentView: (value: "All" | "Expenses" | "Messages") => void;
   chat: FriendData | GroupData | null;
-  setSelectedChat: React.Dispatch<
-    React.SetStateAction<FriendData | GroupData | null>
-  >;
+  clearSelectedChat: () => void;
   blockStatus: "BLOCK" | "UNBLOCK";
   setBlockStatus: (status: "BLOCK" | "UNBLOCK") => void;
   archiveStatus: "ARCHIVE" | "UNARCHIVE";
   setArchiveStatus: (status: "ARCHIVE" | "UNARCHIVE") => void;
   groupMembers?: GroupMemberData[];
-  setExpenses: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setGroupExpenses?: React.Dispatch<React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>>;
   setCombinedView: React.Dispatch<
-    React.SetStateAction<(CombinedMessage | CombinedExpense)[]>
+    React.SetStateAction<
+      (
+        | CombinedMessage
+        | CombinedExpense
+        | CombinedGroupMessage
+        | CombinedGroupExpense
+        | CombinedGroupSettlement
+      )[]
+    >
   >;
 }
 
@@ -32,13 +39,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   currentView,
   setCurrentView,
   chat,
-  setSelectedChat,
+  clearSelectedChat,
   blockStatus,
   setBlockStatus,
   archiveStatus,
   setArchiveStatus,
   groupMembers,
   setExpenses,
+  setGroupExpenses,
   setCombinedView,
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -126,6 +134,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         chat={chat}
         setCombinedView={setCombinedView}
         setExpenses={setExpenses}
+        setGroupExpenses={setGroupExpenses}
       />
       <ViewExpensesDialog
         chat={chat}
@@ -135,7 +144,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       />
       <div className="flex flex-row items-center justify-between p-1">
         <div className="flex flex-row items-center gap-2">
-          <IconButton onClick={() => setSelectedChat(null)}>
+          <IconButton onClick={clearSelectedChat}>
             <ArrowBack />
           </IconButton>
           <img

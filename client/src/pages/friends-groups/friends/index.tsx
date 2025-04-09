@@ -25,7 +25,13 @@ const FriendsPage = () => {
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [expenses, setExpenses] = useState<ExpenseData[]>([]);
   const [combinedView, setCombinedView] = useState<
-    (CombinedMessage | CombinedExpense)[]
+    (
+      | CombinedMessage
+      | CombinedExpense
+      | CombinedGroupMessage
+      | CombinedGroupExpense
+      | CombinedGroupSettlement
+    )[]
   >([]);
 
   useEffect(() => {
@@ -80,6 +86,13 @@ const FriendsPage = () => {
     }
   };
 
+  const clearSelectedFriend = () => {
+    setSelectedFriend(null);
+    setMessages([]);
+    setExpenses([]);
+    setCombinedView([]);
+  }
+
   useEffect(() => {
     handleListChange();
   }, [selected]);
@@ -115,13 +128,13 @@ const FriendsPage = () => {
           title="Friends"
           selected={selected}
           setSelected={setSelected}
-          requestsLength={
-            requests.length
-          }
+          requestsLength={requests.length}
         />
         <ChatList
           chats={filteredFriends}
-          onSelectConversation={(friend) => setSelectedFriend(friend as FriendData)}
+          onSelectConversation={(friend) =>
+            setSelectedFriend(friend as FriendData)
+          }
         />
       </div>
 
@@ -132,7 +145,7 @@ const FriendsPage = () => {
             currentView={currentView}
             setCurrentView={setCurrentView}
             chat={selectedFriend}
-            setSelectedChat={(chat) => setSelectedFriend(chat as FriendData | null)}
+            clearSelectedChat={clearSelectedFriend}
             blockStatus={blockStatus}
             setBlockStatus={setBlockStatus}
             archiveStatus={archiveStatus}
@@ -154,7 +167,9 @@ const FriendsPage = () => {
           <hr className="border-t-4 border-gray-400" />
           <MessageInput
             chat={selectedFriend}
-            setSelectedChat={(chat) => setSelectedFriend(chat as FriendData | null)}
+            setSelectedChat={(chat) =>
+              setSelectedFriend(chat as FriendData | null)
+            }
             blockStatus={blockStatus}
             setExpenses={setExpenses}
             setCombinedView={setCombinedView}

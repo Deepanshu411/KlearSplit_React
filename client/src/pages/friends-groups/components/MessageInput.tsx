@@ -7,12 +7,23 @@ interface MessageInputProps {
   chat: FriendData | GroupData;
   blockStatus: "BLOCK" | "UNBLOCK";
   setSelectedChat: React.Dispatch<
-      React.SetStateAction<FriendData | GroupData | null>
-    >;
-//   setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
-  setExpenses: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+    React.SetStateAction<FriendData | GroupData | null>
+  >;
+  //   setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
+  setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setGroupExpenses?: React.Dispatch<
+    React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>
+  >;
   setCombinedView: React.Dispatch<
-    React.SetStateAction<(CombinedMessage | CombinedExpense)[]>
+    React.SetStateAction<
+      (
+        | CombinedMessage
+        | CombinedExpense
+        | CombinedGroupMessage
+        | CombinedGroupExpense
+        | CombinedGroupSettlement
+      )[]
+    >
   >;
   chatMembers?: GroupMemberData[];
 }
@@ -34,7 +45,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
       <AddExpense
         open={addExpenseDialogOpen}
         chat={chat}
-        setSelectedChat={(chat) => {setSelectedChat(chat as FriendData)}}
+        setSelectedChat={(chat) => {
+          setSelectedChat(chat as FriendData);
+        }}
         handleAddExpensesClose={handleAddExpensesClose}
         setExpenses={setExpenses}
         setCombinedView={setCombinedView}

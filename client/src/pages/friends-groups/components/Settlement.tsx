@@ -15,9 +15,18 @@ interface SettlementProps {
   open: boolean;
   handleSettlementClose: () => void;
   chat: FriendData | GroupData | null;
-  setExpenses: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setGroupExpenses?: React.Dispatch<React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>>;
   setCombinedView: React.Dispatch<
-    React.SetStateAction<(CombinedMessage | CombinedExpense)[]>
+    React.SetStateAction<
+      (
+        | CombinedMessage
+        | CombinedExpense
+        | CombinedGroupMessage
+        | CombinedGroupExpense
+        | CombinedGroupSettlement
+      )[]
+    >
   >;
 }
 
@@ -49,7 +58,9 @@ const Settlement: React.FC<SettlementProps> = ({
   const handleConfirm = () => {
     setOpenConfirm(false);
     handleSettlementClose();
-    setSettlementAmount(Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0");
+    setSettlementAmount(
+      Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0"
+    );
     setError(false);
     setHelperText("");
     setPayer(undefined);
@@ -87,10 +98,12 @@ const Settlement: React.FC<SettlementProps> = ({
     try {
       const newExpense = await addExpense(
         (chat as FriendData).conversation_id,
-        { split_type: "SETTLEMENT", total_amount: settlementAmount },
+        { split_type: "SETTLEMENT", total_amount: settlementAmount }
       );
       toast.success("Amount settled successfully!");
-      setExpenses((prev) => [...prev, newExpense]);
+      if (setExpenses) {
+        setExpenses((prev) => [...prev, newExpense]);
+      };
       setCombinedView((prev) => [...prev, newExpense]);
       handleSettlementClose();
     } catch (error) {
@@ -101,7 +114,9 @@ const Settlement: React.FC<SettlementProps> = ({
   useEffect(() => {
     if (!open) return;
     handleSetPayer(chat);
-    setSettlementAmount(Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0");
+    setSettlementAmount(
+      Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0"
+    );
   }, [open, chat?.balance_amount]);
 
   const onChange = (value: string) => {
@@ -192,7 +207,9 @@ const Settlement: React.FC<SettlementProps> = ({
               <Button
                 onClick={handleSettlementClose}
                 variant="soft"
-                disabled={error || settlementAmount === "" || !isUserPayer(chat)}
+                disabled={
+                  error || settlementAmount === "" || !isUserPayer(chat)
+                }
               >
                 Pay using Paypal
               </Button>

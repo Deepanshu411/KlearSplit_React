@@ -154,7 +154,7 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
                     <TableCell>{expense.expense_name}</TableCell>
                     <TableCell>₹{expense.total_amount}</TableCell>
                     <TableCell>
-                      {expense.payer}
+                      {expense.payer.fullName}
                     </TableCell>
                     <TableCell>{expense.split_type}</TableCell>
                     <TableCell>

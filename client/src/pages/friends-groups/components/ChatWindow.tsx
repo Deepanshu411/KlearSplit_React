@@ -8,18 +8,37 @@ import useScrollToBottom from "../hooks/useScrollToBottom";
 import MessageItem from "./Message";
 import { toast } from "sonner";
 import isFriendsConversation from "../utils/getConversationType";
+import { fetchMessagesExpensesAndSettlements } from "../groups/services";
+import {
+  isGroupExpense,
+  isGroupOrFriendsExpense,
+} from "../utils/getExpenseType";
+import isUserPayer from "../utils/getGroupPayer";
+import getFullNameAndImage from "../utils/getFullNameAndImage";
 
+type CombinedViewType =
+  | CombinedMessage
+  | CombinedExpense
+  | CombinedGroupMessage
+  | CombinedGroupExpense
+  | CombinedGroupSettlement;
 interface ChatWindowProp {
   currentView: "All" | "Expenses" | "Messages";
   chat: FriendData | GroupData | null;
-  messages: MessageData[];
-  expenses: ExpenseData[];
-  combinedView: (CombinedMessage | CombinedExpense)[];
-  setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
-  setExpenses: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
-  setCombinedView: React.Dispatch<
-    React.SetStateAction<(CombinedMessage | CombinedExpense)[]>
+  messages?: MessageData[];
+  expenses?: ExpenseData[];
+  groupMessages?: GroupMessageData[];
+  groupExpenses?: (GroupExpenseData | GroupSettlementData)[];
+  combinedView: CombinedViewType[];
+  setMessages?: React.Dispatch<React.SetStateAction<MessageData[]>>;
+  setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setGroupMessages?: React.Dispatch<React.SetStateAction<GroupMessageData[]>>;
+  setGroupExpenses?: React.Dispatch<
+    React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>
   >;
+  setCombinedView: React.Dispatch<React.SetStateAction<CombinedViewType[]>>;
+  groupMembers?: GroupMemberData[];
+  currentMember?: GroupMemberData;
 }
 
 const PAGE_SIZE = 20;
@@ -29,10 +48,16 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   chat,
   messages,
   expenses,
+  groupMessages,
+  groupExpenses,
   combinedView,
   setMessages,
   setExpenses,
+  setGroupMessages,
+  setGroupExpenses,
   setCombinedView,
+  groupMembers,
+  currentMember,
 }) => {
   const user = useSelector((state: RootState) => state.auth.user);
   const [loading, setLoading] = useState(false);
@@ -51,7 +76,6 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   );
 
   const messagesStartRef = useRef<HTMLDivElement | null>(null);
-  // const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
   const { messageContainerRef, scrollToBottom } = useScrollToBottom();
   const previousScrollHeight = useRef(0);
@@ -60,12 +84,33 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   const prevView = useRef<"All" | "Expenses" | "Messages" | null>(null);
   const isFetching = useRef(false);
 
-  const prevMessagesLength = useRef(messages.length);
-  const prevExpensesLength = useRef(expenses.length);
-  const prevCombinedLength = useRef(combinedView.length);
+  // const prevFriendsMessagesLength = useRef(messages?.length ?? 0);
+  // const prevFriendsExpensesLength = useRef(expenses?.length ?? 0);
+  const prevGroupsMessagesLength = useRef(groupMessages?.length ?? 0);
+  const prevGroupsExpensesLength = useRef(groupExpenses?.length ?? 0);
+  const prevCombinedLength = useRef(combinedView?.length ?? 0);
 
+  let content;
+
+  const clearSelectedChat = () => {
+    setMessages && setMessages([]);
+    setExpenses && setExpenses([]);
+    setGroupMessages && setGroupMessages([]);
+    setGroupExpenses && setGroupExpenses([]);
+    setCombinedView([]);
+    setAllMessagesLoaded(false);
+    setAllExpensesLoaded(false);
+    setAllCombinedLoaded(false);
+    setTimestampMessages(new Date().toISOString());
+    setTimestampExpenses(new Date().toISOString());
+    setTimestampCombined(new Date().toISOString());
+  }
+  useEffect(() => {
+    if (!chat) return;
+    clearSelectedChat();
+  }, [chat]);
   // 🔹 Function to check if all items are loaded
-  const checkAndSetLoaded = useCallback(
+  const checkAndSetLoaded =
     (
       type: "messages" | "expenses" | "combined",
       newData: any[],
@@ -76,14 +121,37 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
         if (type === "expenses") setAllExpensesLoaded(true);
         if (type === "combined") setAllCombinedLoaded(true);
       }
-    },
-    []
-  );
+    };
 
   const isCombinedExpense = (
-    item: CombinedExpense | CombinedMessage
+    item: CombinedViewType
   ): item is CombinedExpense => {
-    return (item as CombinedExpense).payer_id !== undefined;
+    return (item as CombinedExpense).friend_expense_id !== undefined;
+  };
+
+  const isCombinedGroupExpense = (
+    item: CombinedViewType
+  ): item is CombinedGroupExpense => {
+    return (item as CombinedGroupExpense).group_expense_id !== undefined;
+  };
+
+  const isCombinedGroupSettlement = (
+    item: CombinedViewType
+  ): item is CombinedGroupSettlement => {
+    return (item as CombinedGroupSettlement).group_settlement_id !== undefined;
+  };
+
+  const isCombinedMessage = (
+    item: CombinedViewType
+  ): item is CombinedMessage => {
+    return (item as CombinedMessage).message_id !== undefined;
+  };
+
+  const enrichWithPayer = (payer_id: string | number) => {
+    const payer = groupMembers?.find(
+      (member) => member.group_membership_id === payer_id
+    );
+    return getFullNameAndImage(payer);
   };
 
   // 🔹 Function to Fetch Data
@@ -112,48 +180,129 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
     setLoading(true);
 
     try {
-      const response: FetchResult = await fetchMessagesAndExpenses(
-        (chat as FriendData)?.conversation_id!,
-        loadMessages,
-        loadExpenses,
-        PAGE_SIZE,
-        timestampMessages,
-        timestampExpenses,
-        timestampCombined
-      );
+      if (isFriendsConversation(chat!)) {
+        const response: FetchResult = await fetchMessagesAndExpenses(
+          chat?.conversation_id!,
+          loadMessages,
+          loadExpenses,
+          PAGE_SIZE,
+          timestampMessages,
+          timestampExpenses,
+          timestampCombined
+        );
 
-      const newMessages = response.messages.flatMap((msg) => msg.data);
-      const newExpenses = response.expenses.flatMap((exp) => exp.data);
-      const newCombined = response.combined.flatMap((com) => com.data);
+        const newMessages = response.messages.flatMap((msg) => msg.data);
+        const newExpenses = response.expenses.flatMap((exp) => exp.data);
+        const newCombined = response.combined.flatMap((com) => com.data);
 
-      // 🔹 Prepend old messages for infinite scrolling
-      setMessages((prev) => [...newMessages, ...prev]);
-      setExpenses((prev) => [...newExpenses, ...prev]);
-      setCombinedView((prev) => [...newCombined, ...prev]);
+        if (setMessages) setMessages((prev) => [...newMessages, ...prev]);
+        if (setExpenses) setExpenses((prev) => [...newExpenses, ...prev]);
+        setCombinedView((prev) => [...newCombined, ...prev]);
 
-      // 🔹 Check if all items are loaded
-      checkAndSetLoaded("messages", newMessages, PAGE_SIZE);
-      checkAndSetLoaded("expenses", newExpenses, PAGE_SIZE);
-      checkAndSetLoaded("combined", newCombined, PAGE_SIZE);
+        // 🔹 Check if all items are loaded
+        checkAndSetLoaded("messages", newMessages, PAGE_SIZE);
+        checkAndSetLoaded("expenses", newExpenses, PAGE_SIZE);
+        checkAndSetLoaded("combined", newCombined, PAGE_SIZE);
 
-      if (
-        (loadMessages && allMessagesLoaded) ||
-        (loadExpenses && allExpensesLoaded) ||
-        (loadCombined && allCombinedLoaded)
-      ) {
-        return;
-      }
+        if (
+          (loadMessages && allMessagesLoaded) ||
+          (loadExpenses && allExpensesLoaded) ||
+          (loadCombined && allCombinedLoaded)
+        ) {
+          return;
+        }
 
-      // 🔹 Update timestamps for fetching older messages
-      if (newMessages.length)
-        setTimestampMessages(() => newMessages[0].createdAt);
-      if (newExpenses.length)
-        setTimestampExpenses(() => newExpenses[0].createdAt);
-      if (newCombined.length)
-        setTimestampCombined(() => newCombined[0].createdAt);
+        // 🔹 Update timestamps for fetching older messages
+        if (newMessages.length)
+          setTimestampMessages(() => newMessages[0].createdAt);
+        if (newExpenses.length)
+          setTimestampExpenses(() => newExpenses[0].createdAt);
+        if (newCombined.length)
+          setTimestampCombined(() => newCombined[0].createdAt);
 
-      // 🔹 Restore scroll position after the DOM updates
-      setTimeout(() => {
+        // 🔹 Restore scroll position after the DOM updates
+        setTimeout(() => {
+          if (messageContainerRef.current) {
+            const newScrollHeight = messageContainerRef.current.scrollHeight;
+
+            messageContainerRef.current.scrollTop =
+              newScrollHeight -
+              previousScrollHeight.current +
+              previousScrollTop.current;
+
+            // Update for the next turn
+            previousScrollHeight.current =
+              messageContainerRef.current.scrollHeight;
+            previousScrollTop.current = messageContainerRef.current.scrollTop;
+          }
+        }, 0);
+      } else {
+        const response = await fetchMessagesExpensesAndSettlements(
+          chat?.group_id!,
+          loadMessages,
+          loadExpenses,
+          PAGE_SIZE,
+          timestampMessages,
+          timestampExpenses,
+          timestampCombined
+        );
+
+        const newMessages = response.messages.flatMap((msg) => msg.data);
+        const newExpenses = response.expenses.flatMap((exp) => exp.data);
+        const newCombined = response.combined.flatMap((com) => com.data);
+
+        const newExpensesWithPayer = newExpenses.map((expense) => {
+          if (isGroupOrFriendsExpense(expense)) {
+            return {
+              ...expense,
+              payer: enrichWithPayer(expense.payer_id),
+            };
+          }
+          return expense;
+        });
+
+        const newCombinedWithPayer = newCombined.map((combined) => {
+          if (isCombinedGroupExpense(combined)) {
+            return {
+              ...combined,
+              payer: enrichWithPayer(combined.payer_id),
+            };
+          }
+        });
+
+        // 🔹 Prepend old messages for infinite scrolling
+
+        if (setGroupMessages)
+          setGroupMessages((prev) => [...newMessages, ...prev]);
+        if (setGroupExpenses)
+          setGroupExpenses((prev) => [...newExpensesWithPayer, ...prev]);
+        setCombinedView((prev) => [
+          ...newCombinedWithPayer.filter((item) => item !== undefined),
+          ...prev,
+        ]);
+
+        // 🔹 Check if all items are loaded
+        checkAndSetLoaded("messages", newMessages, PAGE_SIZE);
+        checkAndSetLoaded("expenses", newExpenses, PAGE_SIZE);
+        checkAndSetLoaded("combined", newCombined, PAGE_SIZE);
+
+        if (
+          (loadMessages && allMessagesLoaded) ||
+          (loadExpenses && allExpensesLoaded) ||
+          (loadCombined && allCombinedLoaded)
+        ) {
+          return;
+        }
+
+        // 🔹 Update timestamps for fetching older messages
+        if (newMessages.length)
+          setTimestampMessages(() => newMessages[0].createdAt);
+        if (newExpenses.length)
+          setTimestampExpenses(() => newExpenses[0].createdAt);
+        if (newCombined.length)
+          setTimestampCombined(() => newCombined[0].createdAt);
+
+        // 🔹 Restore scroll position after the DOM updates
         if (messageContainerRef.current) {
           const newScrollHeight = messageContainerRef.current.scrollHeight;
 
@@ -167,7 +316,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
             messageContainerRef.current.scrollHeight;
           previousScrollTop.current = messageContainerRef.current.scrollTop;
         }
-      }, 0);
+      }
     } catch (error) {
       toast.error("Something went wrong! Please try again later.");
     } finally {
@@ -178,12 +327,13 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
       });
     }
   }, [
-    (chat as FriendData)?.conversation_id,
+    chat,
     timestampMessages,
     timestampExpenses,
     timestampCombined,
     checkAndSetLoaded,
     currentView,
+    groupMembers,
   ]);
 
   // 🔹 Infinite Scroll Observer
@@ -208,8 +358,10 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
     // Ensure messages, expenses, or combinedView have loaded
     if (firstLoad.current || prevView.current !== currentView) {
       if (
-        messages.length > 0 ||
-        expenses.length > 0 ||
+        (messages && messages.length > 0) ||
+        (expenses && expenses.length > 0) ||
+        (groupMessages && groupMessages.length > 0) ||
+        (groupExpenses && groupExpenses.length > 0) ||
         combinedView.length > 0
       ) {
         scrollToBottom();
@@ -217,20 +369,26 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
         prevView.current = currentView; // update prevView after data loads
       }
     }
-  }, [currentView, messages, expenses, combinedView]);
+  }, [currentView]);
 
   useEffect(() => {
     // Check for new messages
-    if (messages.length > prevMessagesLength.current) {
-      prevMessagesLength.current = messages.length;
+    if (
+      groupMessages &&
+      groupMessages.length > prevGroupsMessagesLength.current
+    ) {
+      prevGroupsMessagesLength.current = groupMessages.length;
       scrollToBottom();
     }
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
     // Check for new expenses
-    if (expenses.length > prevExpensesLength.current) {
-      prevExpensesLength.current = expenses.length;
+    if (
+      groupExpenses &&
+      groupExpenses.length > prevGroupsExpensesLength.current
+    ) {
+      prevGroupsExpensesLength.current = expenses!.length;
       scrollToBottom();
     }
   }, [expenses, scrollToBottom]);
@@ -243,69 +401,145 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
     }
   }, [combinedView, scrollToBottom]);
 
-  return (
-    <div
-      ref={messageContainerRef}
-      className="min-h-[67vh] max-h-[67vh] overflow-y-auto"
-    >
-      <div ref={messagesStartRef}></div>
-      {loading && <LinearProgress />}
-      {/* Messages or Expenses go here */}
-      {currentView === "All" && (
+  switch (currentView) {
+    case "All":
+      content = (
         <div className="space-y-2">
-          {combinedView.map((item, index) => (
-            <div key={index}>
-              {!isCombinedExpense(item) ? (
+          {combinedView.map((item, index) => {
+            if (isCombinedMessage(item)) {
+              return (
                 <MessageItem
+                  key={index}
                   message={{
                     message: item.message,
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                   }}
-                  isCurrentUser={item.sender_id === user?.user_id}
+                  isCurrentUser={
+                    isFriendsConversation(chat!)
+                      ? item.sender_id === user?.user_id
+                      : item.sender_id === currentMember?.group_membership_id
+                  }
                   currentUserImageUrl={
                     user?.image_url ||
                     "https://randomuser.me/api/portraits/men/9.jpg"
                   }
                   imageUrl={
-                    isFriendsConversation(chat!) ? chat?.friend.image_url : chat?.image_url ||
+                    isFriendsConversation(chat!)
+                      ? chat?.friend.image_url
+                      : groupMembers?.find(
+                          (member) =>
+                            member.group_membership_id === item.sender_id
+                        )?.image_url ||
+                        "https://randomuser.me/api/portraits/men/9.jpg"
+                  }
+                  name={
+                    isFriendsConversation(chat!)
+                      ? chat?.friend.first_name!
+                      : groupMembers?.find(
+                          (member) =>
+                            member.group_membership_id === item.sender_id
+                        )?.first_name!
+                  }
+                />
+              );
+            } else if (isCombinedExpense(item)) {
+              return (
+                <ExpenseItem
+                  key={index}
+                  expense={{
+                    expense_id: item.friend_expense_id,
+                    expense_name: item.expense_name,
+                    payer_id: item.payer_id,
+                    total_amount: item.total_amount,
+                    debtor_amount: item.debtor_amount,
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt,
+                  }}
+                  isCurrentUserPayer={item.payer_id === user?.user_id}
+                  currentUserImageUrl={
+                    user?.image_url ||
                     "https://randomuser.me/api/portraits/men/9.jpg"
                   }
-                  name={isFriendsConversation(chat!) ? chat?.friend.first_name! : chat?.group_name!}
+                  imageUrl={
+                    isFriendsConversation(chat!)
+                      ? chat?.friend.image_url
+                      : chat?.image_url ||
+                        "https://randomuser.me/api/portraits/men/9.jpg"
+                  }
+                  name={
+                    isFriendsConversation(chat!)
+                      ? chat?.friend.first_name!
+                      : chat?.group_name!
+                  }
                 />
-              ) : (
+              );
+            } else if (isCombinedGroupExpense(item)) {
+              return (
                 <ExpenseItem
+                  key={index}
                   expense={{
-                    expense_id: (item as CombinedExpense).friend_expense_id,
-                    expense_name: (item as CombinedExpense).expense_name,
-                    payer_id: (item as CombinedExpense).payer_id,
-                    total_amount: (item as CombinedExpense).total_amount,
-                    debtor_amount: (item as CombinedExpense).debtor_amount,
+                    expense_id: item.group_expense_id,
+                    expense_name: item.expense_name,
+                    payer_id: item.payer_id,
+                    total_amount: item.total_amount,
+                    debtor_amount: isUserPayer(user?.user_id!, item.payer_id)
+                      ? item.total_debt_amount
+                      : item.user_debt,
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                   }}
                   isCurrentUserPayer={
-                    (item as CombinedExpense).payer_id === user?.user_id
+                    item.payer_id === currentMember?.group_membership_id
                   }
                   currentUserImageUrl={
                     user?.image_url ||
                     "https://randomuser.me/api/portraits/men/9.jpg"
                   }
                   imageUrl={
-                    isFriendsConversation(chat!) ? chat?.friend.image_url : chat?.image_url ||
+                    item.payer.imageUrl ||
                     "https://randomuser.me/api/portraits/men/9.jpg"
                   }
-                  name={isFriendsConversation(chat!) ? chat?.friend.first_name! : chat?.group_name!}
+                  name={item.payer.fullName || "Unknown Payer"}
                 />
-              )}
-            </div>
-          ))}
+              );
+            } else if (isCombinedGroupSettlement(item)) {
+              return (
+                <ExpenseItem
+                  key={index}
+                  expense={{
+                    expense_id: item.group_settlement_id,
+                    expense_name: "Settlement",
+                    payer_id: item.payer_id,
+                    total_amount: item.settlement_amount,
+                    debtor_amount: item.settlement_amount,
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt,
+                  }}
+                  isCurrentUserPayer={
+                    item.payer_id === currentMember?.group_membership_id
+                  }
+                  currentUserImageUrl={
+                    user?.image_url ||
+                    "https://randomuser.me/api/portraits/men/9.jpg"
+                  }
+                  imageUrl={
+                    item.payer.imageUrl ||
+                    "https://randomuser.me/api/portraits/men/9.jpg"
+                  }
+                  name={item.payer.fullName || "Unknown Payer"}
+                />
+              );
+            }
+          })}
         </div>
-      )}
-      {currentView === "Expenses" && (
-        <div className="space-y-2">
-          {expenses.map((expense, index) => (
-            <div>
+      );
+      break;
+    case "Expenses":
+      if (isFriendsConversation(chat!)) {
+        content = (
+          <div className="space-y-2">
+            {expenses!.map((expense, index) => (
               <ExpenseItem
                 key={index}
                 expense={{
@@ -323,41 +557,159 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                   "https://randomuser.me/api/portraits/men/9.jpg"
                 }
                 imageUrl={
-                    isFriendsConversation(chat!) ? chat?.friend.image_url : chat?.image_url ||
+                  chat?.friend.image_url ||
                   "https://randomuser.me/api/portraits/men/9.jpg"
                 }
-                name={isFriendsConversation(chat!) ? chat?.friend.first_name! : chat?.group_name!}
+                name={chat?.friend.first_name!}
               />
+            ))}
+          </div>
+        );
+      } else {
+        content = (
+          <div className="space-y-2">
+            {groupExpenses!.map((expense, index) => {
+              if (isGroupExpense(expense)) {
+                return (
+                  <ExpenseItem
+                    key={index}
+                    expense={{
+                      expense_id: expense.group_expense_id,
+                      expense_name: expense.expense_name,
+                      payer_id: expense.payer_id,
+                      total_amount: expense.total_amount,
+                      debtor_amount: isUserPayer(
+                        user?.user_id!,
+                        expense.payer_id
+                      )
+                        ? expense.total_debt_amount
+                        : expense.user_debt,
+                      createdAt: expense.createdAt,
+                      updatedAt: expense.updatedAt,
+                    }}
+                    isCurrentUserPayer={
+                      expense.payer_id === currentMember?.group_membership_id
+                    }
+                    currentUserImageUrl={
+                      user?.image_url ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
+                    imageUrl={
+                      expense.payer.imageUrl ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
+                    name={expense.payer.fullName || "Unknown Payer"}
+                  />
+                );
+              } else {
+                return (
+                  <ExpenseItem
+                    key={index}
+                    expense={{
+                      expense_id: expense.group_settlement_id,
+                      expense_name: "Settlement",
+                      payer_id: expense.payer_id,
+                      total_amount: expense.settlement_amount,
+                      debtor_amount: expense.settlement_amount,
+                      createdAt: expense.createdAt,
+                      updatedAt: expense.updatedAt,
+                    }}
+                    isCurrentUserPayer={
+                      expense.payer_id === currentMember?.group_membership_id
+                    }
+                    currentUserImageUrl={
+                      user?.image_url ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
+                    imageUrl={
+                      expense.payer.imageUrl ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
+                    name={expense.payer.fullName || "Unknown Payer"}
+                  />
+                );
+              }
+            })}
+          </div>
+        );
+      }
+      break;
+    case "Messages":
+      isFriendsConversation(chat!)
+        ? (content = (
+            <div className="space-y-2">
+              {messages!.map((message, index) => {
+                return (
+                  <MessageItem
+                    key={index}
+                    message={{
+                      message: message.message,
+                      createdAt: message.createdAt,
+                      updatedAt: message.updatedAt,
+                    }}
+                    isCurrentUser={message.sender_id === user?.user_id}
+                    currentUserImageUrl={
+                      user?.image_url ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
+                    imageUrl={
+                      chat?.friend.image_url ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
+                    name={chat?.friend.first_name!}
+                  />
+                );
+              })}
             </div>
-          ))}
-        </div>
-      )}
-      {currentView === "Messages" && (
-        <div className="space-y-2">
-          {messages.map((message, index) => (
-            <div>
-              <MessageItem
-                key={index}
-                message={{
-                  message: message.message,
-                  createdAt: message.createdAt,
-                  updatedAt: message.updatedAt,
-                }}
-                isCurrentUser={message.sender_id === user?.user_id}
-                currentUserImageUrl={
-                  user?.image_url ||
-                  "https://randomuser.me/api/portraits/men/9.jpg"
-                }
-                imageUrl={
-                    isFriendsConversation(chat!) ? chat?.friend.image_url : chat?.image_url ||
-                  "https://randomuser.me/api/portraits/men/9.jpg"
-                }
-                name={isFriendsConversation(chat!) ? chat?.friend.first_name! : chat?.group_name!}
-              />
+          ))
+        : (content = (
+            <div className="space-y-2">
+              {groupMessages!.map((message, index) => {
+                return (
+                  <MessageItem
+                    key={index}
+                    message={{
+                      message: message.message,
+                      createdAt: message.createdAt,
+                      updatedAt: message.updatedAt,
+                    }}
+                    isCurrentUser={message.sender_id === user?.user_id}
+                    currentUserImageUrl={
+                      user?.image_url ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
+                    imageUrl={
+                      groupMembers?.find(
+                        (member) =>
+                          member.group_membership_id === message.sender_id
+                      )?.image_url ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
+                    name={
+                      groupMembers?.find(
+                        (member) =>
+                          member.group_membership_id === message.sender_id
+                      )?.first_name!
+                    }
+                  />
+                );
+              })}
             </div>
-          ))}
-        </div>
-      )}
+          ));
+      break;
+    default:
+      break;
+  }
+
+  return (
+    <div
+      ref={messageContainerRef}
+      className="min-h-[60vh] max-h-[60vh] overflow-y-auto"
+    >
+      <div ref={messagesStartRef}></div>
+      {loading && <LinearProgress />}
+      {/* Messages or Expenses go here */}
+      {content}
     </div>
   );
 };

@@ -8,8 +8,11 @@ import ChatHeader from "../components/ChatHeader";
 import ChatWindow from "../components/ChatWindow";
 import MessageInput from "../components/MessageInput";
 import { Typography } from "@mui/material";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
 
 const GroupsPage = () => {
+  const user = useSelector((store: RootState) => store.auth.user);
   const [currentView, setCurrentView] = useState<
     "All" | "Expenses" | "Messages"
   >("All");
@@ -19,15 +22,22 @@ const GroupsPage = () => {
   const [selected, setSelected] = useState("Groups");
   const [selectedGroup, setSelectedGroup] = useState<GroupData | null>(null);
   const [groupMembers, setGroupMembers] = useState<GroupMemberData[]>([]);
+  const [currentMember, setCurrentMember] = useState<GroupMemberData>();
   const [filteredGroups, setFilteredGroups] = useState(groups);
   const [blockStatus, setBlockStatus] = useState<"BLOCK" | "UNBLOCK">("BLOCK");
   const [archiveStatus, setArchiveStatus] = useState<"ARCHIVE" | "UNARCHIVE">(
     "ARCHIVE"
   );
-  const [messages, setMessages] = useState<MessageData[]>([]);
-  const [expenses, setExpenses] = useState<ExpenseData[]>([]);
+  const [groupMessages, setGroupMessages] = useState<GroupMessageData[]>([]);
+  const [groupExpenses, setGroupExpenses] = useState<(GroupExpenseData | GroupSettlementData)[]>([]);
   const [combinedView, setCombinedView] = useState<
-    (CombinedMessage | CombinedExpense)[]
+    (
+      | CombinedMessage
+      | CombinedExpense
+      | CombinedGroupMessage
+      | CombinedGroupExpense
+      | CombinedGroupSettlement
+    )[]
   >([]);
 
   useEffect(() => {
@@ -74,11 +84,34 @@ const GroupsPage = () => {
     }
   };
 
+  const clearSelectedGroup = () => {
+    setSelectedGroup(null);
+    setGroupMembers([]);
+    setCurrentMember(undefined);
+    setGroupMessages([]);
+    setGroupExpenses([]);
+    setCombinedView([]);
+  }
+
   const handleSelectConversation = async (group: GroupData) => {
+    clearSelectedGroup();
     setSelectedGroup(group);
-    const groupMembers = await fetchGroupMembers(group.group_id);
-    setGroupMembers(groupMembers);
   };
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!selectedGroup) return;
+  
+      const groupMembers = await fetchGroupMembers(selectedGroup.group_id);
+      const currentMember = groupMembers.find(
+        (member) => member.member_id === user?.user_id
+      );
+      setGroupMembers(groupMembers);
+      setCurrentMember(currentMember);
+    };
+  
+    fetchMembers();
+  }, [selectedGroup]);  
 
   useEffect(() => {
     handleListChange();
@@ -133,32 +166,34 @@ const GroupsPage = () => {
             currentView={currentView}
             setCurrentView={setCurrentView}
             chat={selectedGroup}
-            setSelectedChat={(group) => setSelectedGroup(group as GroupData)}
+            clearSelectedChat={clearSelectedGroup}
             blockStatus={blockStatus}
             setBlockStatus={setBlockStatus}
             archiveStatus={archiveStatus}
             setArchiveStatus={setArchiveStatus}
             groupMembers={groupMembers}
             setCombinedView={setCombinedView}
-            setExpenses={setExpenses}
+            setGroupExpenses={setGroupExpenses}
           />
           <hr className="border-t-4 border-gray-400" />
           <ChatWindow
             currentView={currentView}
             chat={selectedGroup}
-            messages={messages}
-            expenses={expenses}
+            groupMessages={groupMessages}
+            groupExpenses={groupExpenses}
             combinedView={combinedView}
-            setMessages={setMessages}
-            setExpenses={setExpenses}
+            setGroupMessages={setGroupMessages}
+            setGroupExpenses={setGroupExpenses}
             setCombinedView={setCombinedView}
+            groupMembers={groupMembers}
+            currentMember={currentMember}
           />
           <hr className="border-t-4 border-gray-400" />
           <MessageInput
             chat={selectedGroup}
             setSelectedChat={(chat) => setSelectedGroup(chat as GroupData)}
             blockStatus={blockStatus}
-            setExpenses={setExpenses}
+            setGroupExpenses={setGroupExpenses}
             setCombinedView={setCombinedView}
             chatMembers={groupMembers}
           />

@@ -34,9 +34,20 @@ interface AddExpenseProps {
   >;
   handleAddExpensesClose: () => void;
   //   setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
-  setExpenses: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setGroupExpenses?: React.Dispatch<
+    React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>
+  >;
   setCombinedView: React.Dispatch<
-    React.SetStateAction<(CombinedMessage | CombinedExpense)[]>
+    React.SetStateAction<
+      (
+        | CombinedMessage
+        | CombinedExpense
+        | CombinedGroupMessage
+        | CombinedGroupExpense
+        | CombinedGroupSettlement
+      )[]
+    >
   >;
   chatMembers?: GroupMemberData[];
 }
@@ -44,7 +55,6 @@ interface AddExpenseProps {
 const AddExpense: React.FC<AddExpenseProps> = ({
   open,
   chat,
-  setSelectedChat,
   handleAddExpensesClose,
   setExpenses,
   setCombinedView,
@@ -69,7 +79,6 @@ const AddExpense: React.FC<AddExpenseProps> = ({
       setParticipants([user!, { ...chat.friend, phone: "" }]);
     } else {
       // setParticipants(chatMembers);
-      console.log(chatMembers);
     }
   }, []);
 
@@ -203,7 +212,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({
         formData
       );
       toast.success("Expense added successfully!");
-      setExpenses((prev) => [...prev, newExpense]);
+      if (setExpenses) setExpenses((prev) => [...prev, newExpense]);
       setCombinedView((prev) => [...prev, newExpense]);
       handleAddExpensesClose();
     } catch (error) {

@@ -226,7 +226,7 @@ interface CombinedGroupSettlement extends GroupSettlementData {
   type: string;
 }
 
-interface CombinedView {
+interface CombinedGroupView {
   success: string;
   message: string;
   data: (
@@ -234,6 +234,12 @@ interface CombinedView {
     | CombinedGroupSettlement
     | CombinedGroupMessage
   )[];
+}
+
+interface FetchGroupResult {
+  messages: GroupMessageResponse[];
+  expenses: FetchExpenseResponse[];
+  combined: CombinedGroupView[];
 }
 
 interface ExpenseDeletedEvent {

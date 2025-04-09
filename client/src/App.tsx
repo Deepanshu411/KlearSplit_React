@@ -3,8 +3,7 @@ import { RouterProvider } from 'react-router-dom'
 import { router } from "./routes/routes"
 import { Box } from '@mui/material';
 import HashLoader from "react-spinners/ClipLoader";
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from './store';
+import { useDispatch } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { login, logout } from './store/authSlice';
 import { toast } from 'sonner';
@@ -12,10 +11,6 @@ import getUser from './services/userService';
 
 function App() {
   const dispatch = useDispatch();
-  const isAuthenticated = useSelector(
-    (state: RootState) => state.auth.isAuthenticated,
-  );
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +18,7 @@ function App() {
       try {
         const response = await getUser();
         if (response.status === 200) {
-          const userData = response.data;
+          const userData = response.data.data;
           dispatch(login(userData));
         }
       } catch (error) {
