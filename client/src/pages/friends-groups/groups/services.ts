@@ -24,9 +24,33 @@ export const createGroup = async (
   return response.data.data;
 };
 
+export const addGroupMembers = async (membersData: MembersData, groupId: string) => {
+  const response = await axiosInstance.post<AddMemberResponse>(
+    API_URLS.groups.addGroupMembers,
+    { membersData, group_id: groupId },
+  );
+  return response.data.data;
+}
+
+export const acceptRejectInvite = async (groupId: string, status: string) => {
+  const response = await axiosInstance.patch(
+    `${API_URLS.groups.updateGroupMember}/${groupId}`,
+    { status },
+  );
+  return response.data.data;
+};
+
 export const fetchGroupMembers = async (groupId: string) => {
   const response = await axiosInstance.get<GroupResponse>(
     `${API_URLS.groups.group}/${groupId}`
+  );
+  return response.data.data;
+};
+
+export const updateGroup = async (groupId: string, groupData: FormData) => {
+  const response = await axiosInstance.patch<UpdateGroupResponse>(
+    `${API_URLS.groups.group}/${groupId}`,
+    groupData,
   );
   return response.data.data;
 };
@@ -38,6 +62,34 @@ export const blockGroup = async (groupId: string, blockStatus: boolean) => {
   );
   return response.data.data;
 };
+
+export const leaveGroup = async (groupId: string) => {
+  await axiosInstance.delete(`${API_URLS.groups.leaveGroup}/${groupId}`);
+};
+
+export const saveGroupMessages = async (message: string, groupId: string) => {
+  const response = await axiosInstance.post(
+    `${API_URLS.groups.saveGroupMessages}/${groupId}`,
+    { message },
+  );
+  return response.data.data;
+};
+
+export const addExpense = async (groupId: string, expenseData: GroupExpenseInput | FormData) => {
+  const response = await axiosInstance.post<GroupExpenseResponse>(
+    `${API_URLS.groups.addGroupExpense}/${groupId}`,
+    expenseData,
+  );
+  return response.data.data;
+};
+
+export const addSettlements = async (groupId: string, settlementData: GroupSettlementInput) => {
+  const response = await axiosInstance.post<GroupSettlementResponse>(
+    `${API_URLS.groups.addGroupSettlements}/${groupId}`,
+    settlementData,
+  );
+  return response.data.data;
+}
 
 // 🔹 Function to fetch messages, expenses, and combined data
 export const fetchMessagesExpensesAndSettlements = async (
@@ -149,6 +201,22 @@ export const fetchAllExpensesAndSettlements = async (groupId: string) => {
   return response.data.data;
 };
 
+export const updateExpense = async (groupId: string, data: GroupExpenseInput | FormData) => {
+  const response = await axiosInstance.patch<GroupExpenseResponse>(
+    `${API_URLS.groups.updateGroupExpense}/${groupId}`,
+    data,
+  );
+  return response.data.data;
+};
+
+export const updateSettlement = async (groupId: string, data: GroupSettlementInput) => {
+  const response = await axiosInstance.patch<GroupSettlementResponse>(
+    `${API_URLS.groups.updateGroupSettlement}/${groupId}`,
+    data,
+  );
+  return response.data.data;
+}
+
 export const deleteExpenseAndSettlement = async (
   groupId: string,
   isExpense: boolean,
@@ -165,13 +233,3 @@ export const deleteExpenseAndSettlement = async (
   });
   return response.data.data;
 };
-
-// export const fetchExpenses = async (conversationId: string) => {
-//     const response = await axiosInstance.get(`${API_URLS.friends.getExpenses}/${conversationId}`, {params: {fetchAll: true, timestamp: new Date().toISOString()}});
-//     return response.data.data;
-// }
-
-// export const deleteExpense = async (conversationId: string, expenseId: string) => {
-//     const response = await axiosInstance.delete(`${API_URLS.friends.deleteExpense}/${conversationId}`, { data: { "friend_expense_id": expenseId } });
-//     return response.data.data;
-// }

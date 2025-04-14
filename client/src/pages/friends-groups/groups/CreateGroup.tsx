@@ -10,10 +10,10 @@ import {
   IconButton,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Close } from "@mui/icons-material";
 import SelectMembersDialog from "./SelectMembers";
-import { createGroup } from "./services";
+import { createGroup, updateGroup } from "./services";
 import { toast } from "sonner";
 import ConfirmDialog from "../../../components/shared/ConfirmDialog";
 
@@ -21,12 +21,20 @@ interface CreateGroupProps {
   open: boolean;
   handleClose: () => void;
   setGroups?: React.Dispatch<React.SetStateAction<GroupData[]>>;
+  title: "Create Group" | "Update Group";
+  selectedGroup?: GroupData;
+  setSelectedGroup?: React.Dispatch<React.SetStateAction<GroupData | null>>;
+  chat: FriendData | GroupData;
 }
 
 const CreateGroup: React.FC<CreateGroupProps> = ({
   open,
   handleClose,
   setGroups,
+  title,
+  selectedGroup,
+  setSelectedGroup,
+  chat,
 }) => {
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<SelectableUser[]>([]); // where MemberWithRole = User & { role: string }
@@ -35,6 +43,13 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
   const [image, setImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [openConfirm, setOpenConfirm] = useState(false);
+
+  useEffect(() => {
+    if (title === "Update Group") {
+      setGroupName(selectedGroup?.group_name!);
+      setGroupDescription(selectedGroup?.group_description!);
+    }
+  }, [title, selectedGroup]);
 
   const handleConfirm = () => {
     setOpenConfirm(false);
@@ -62,43 +77,89 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!groupName.trim()) return;
-    // submit logic here
-    const formData = new FormData();
-    const groupDetails = handleGroupDetails();
-    const membersData = handleMembersData();
-    formData.append("group", JSON.stringify(groupDetails));
-    formData.append("membersData", JSON.stringify(membersData));
-    if (image) formData.append("image", image);
-    try {
-      const group = await createGroup(formData);
-      toast.success("Group created successfully");
-      if (setGroups) {
-        setGroups((prevGroups) => [
-          {
-            ...group,
-            status: "ACCEPTED",
-            role: "CREATOR",
-            has_archived: false,
-            has_blocked: false,
-            balance_amount: "0",
-          } as GroupData,
-          ...prevGroups,
-        ]);
-      }
-      // Optionally, you can also close the dialog here
-      handleClose();
-    } catch {
-      toast.error("Failed to create group");
+    switch (title) {
+      case "Create Group":
+        if (!groupName.trim()) return;
+        // submit logic here
+        const formData = new FormData();
+        const groupDetails = handleGroupDetails();
+        const membersData = handleMembersData();
+        formData.append("group", JSON.stringify(groupDetails));
+        formData.append("membersData", JSON.stringify(membersData));
+        if (image) formData.append("image", image);
+        try {
+          const group = await createGroup(formData);
+          toast.success("Group created successfully");
+          if (setGroups) {
+            setGroups((prevGroups) => [
+              {
+                ...group,
+                status: "ACCEPTED",
+                role: "CREATOR",
+                has_archived: false,
+                has_blocked: false,
+                balance_amount: "0",
+              } as GroupData,
+              ...prevGroups,
+            ]);
+          }
+          // Optionally, you can also close the dialog here
+          handleClose();
+        } catch {
+          toast.error("Failed to create group");
+        }
+        // Reset state after submission
+        setGroupName("");
+        setGroupDescription("");
+        setSelectedMembers([]);
+        setImage(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        // Close the dialog
+        handleClose();
+        break;
+      case "Update Group":
+        if (!groupName.trim()) return;
+        // submit logic here
+        const updateFormData = new FormData();
+        appendChangedFieldsToFormData(updateFormData, selectedGroup!, {
+          group_name: groupName,
+          group_description: groupDescription,
+          image,
+        });
+
+        try {
+          const updatedGroup = await updateGroup(
+            selectedGroup!.group_id,
+            updateFormData
+          );
+          setGroups &&
+            setGroups((prev) => {
+              return prev.map((c) =>
+                c.group_id === updatedGroup.group_id
+                  ? {
+                      ...updatedGroup,
+                      balance_amount: selectedGroup!.balance_amount,
+                      status: selectedGroup!.status,
+                      role: selectedGroup!.role,
+                      has_blocked: selectedGroup!.has_blocked,
+                    }
+                  : c
+              );
+            });
+          setSelectedGroup!((prev) => ({
+            ...updatedGroup,
+            balance_amount: prev!.balance_amount,
+            status: prev!.status,
+            role: prev!.role,
+            has_blocked: prev!.has_blocked,
+          }));
+          toast.success("Group updated successfully");
+          handleClose();
+        } catch {
+          toast.error("Failed to update group");
+        }
+        break;
     }
-    // Reset state after submission
-    setGroupName("");
-    setGroupDescription("");
-    setSelectedMembers([]);
-    setImage(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    // Close the dialog
-    handleClose();
   };
 
   const handleGroupDetails = () => {
@@ -120,6 +181,26 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
         .map((user) => user.user_id),
     };
     return cleanObject(membersData);
+  };
+
+  const appendChangedFieldsToFormData = (
+    formData: FormData,
+    selectedGroup: GroupData,
+    fields: { [key: string]: any }
+  ) => {
+    Object.entries(fields).forEach(([key, value]) => {
+      if (key === "image" && value instanceof File) {
+        formData.append("image", value);
+      } else if (
+        value !== undefined &&
+        value !== null &&
+        value !== selectedGroup[key as keyof GroupData]
+      ) {
+        formData.append(key, value);
+      }
+    });
+
+    return formData;
   };
 
   const cleanObject = (obj: Record<string, any>) => {
@@ -149,7 +230,7 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
 
   return (
     <>
-      <ConfirmDialog  
+      <ConfirmDialog
         open={openConfirm}
         title="Are you sure?"
         description="Are you sure you want to discard the changes?"
@@ -181,7 +262,7 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
             }}
           >
             <DialogTitle className="bg-blue-600 text-white text-center text-xl">
-              Create Group
+              {title}
             </DialogTitle>
             <DialogContent className="flex flex-col gap-4 pt-4">
               <TextField
@@ -231,14 +312,16 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
                 )}
               </div>
 
-              <Button
-                variant="contained"
-                color="primary"
-                fullWidth
-                onClick={handleAddMembers}
-              >
-                Add Members
-              </Button>
+              {title === "Create Group" && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  onClick={handleAddMembers}
+                >
+                  Add Members
+                </Button>
+              )}
 
               {selectedMembers.length > 0 && (
                 <div className="mt-4 max-h-40 overflow-y-auto bg-gray-50 rounded p-2 text-sm">
@@ -267,10 +350,12 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
       </Modal>
 
       <SelectMembersDialog
+        title="Select Members"
         open={membersDialogOpen}
         handleClose={() => setMembersDialogOpen(false)}
         selectedMembers={selectedMembers}
         onSave={setSelectedMembers}
+        chat={chat}
       />
     </>
   );

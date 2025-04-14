@@ -15,24 +15,49 @@ import { useCallback, useState } from "react";
 import debounce from "../../../utils/debounce";
 import { X } from "lucide-react";
 import { searchUser } from "../../../services/userService";
+import { addGroupMembers } from "./services";
+import { toast } from "sonner";
+import ConfirmDialog from "../../../components/shared/ConfirmDialog";
 
 interface Props {
+  title: "Select Members" | "Add Members";
   open: boolean;
   handleClose: () => void;
-  selectedMembers: SelectableUser[];
-  onSave: (members: SelectableUser[]) => void;
+  selectedMembers?: SelectableUser[];
+  onSave?: (members: SelectableUser[]) => void;
+  chat: GroupData | FriendData;
+  setGroupMembers?: React.Dispatch<React.SetStateAction<GroupMemberData[]>>;
 }
 
 const SelectMembersDialog: React.FC<Props> = ({
+  title,
   open,
   handleClose,
   selectedMembers,
   onSave,
+  chat,
+  setGroupMembers,
 }) => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchedUser[]>([]);
-  const [members, setMembers] = useState<SelectableUser[]>(selectedMembers);
+  const [members, setMembers] = useState<SelectableUser[]>(
+    selectedMembers ? selectedMembers : []
+  );
+  const [openConfirm, setOpenConfirm] = useState(false);
+
+  const handleConfirm = () => {
+    setOpenConfirm(false);
+    handleClose();
+  };
+
+  const handleCancel = () => {
+    setOpenConfirm(false);
+  };
+
+  const onClose = () => {
+    setOpenConfirm(true);
+  };
 
   const debouncedSearch = useCallback(
     debounce(async (q: string) => {
@@ -77,21 +102,63 @@ const SelectMembersDialog: React.FC<Props> = ({
     setMembers(members.filter((m) => m.email !== email));
   };
 
-  const handleSave = () => {
-    onSave(members);
-    setMembers([]);
-    setQuery("");
-    setSearchResults([]);
-    setLoading(false);
-    handleClose();
+  const handleMembersData = (): MembersData => {
+    const membersList = members.map((user) => user.user_id);
+    const admins = members
+      .filter((user) => user.role === "admin")
+      .map((user) => user.user_id);
+    const coadmins = members
+      .filter((user) => user.role === "coadmin")
+      .map((user) => user.user_id);
+
+    const membersData: MembersData = {
+      members: membersList,
+      ...(admins.length > 0 && { admins }),
+      ...(coadmins.length > 0 && { coadmins }),
+    };
+
+    return membersData;
+  };
+
+  const handleSave = async () => {
+    switch (title) {
+      case "Select Members":
+        onSave && onSave(members);
+        setMembers([]);
+        setQuery("");
+        setSearchResults([]);
+        setLoading(false);
+        handleClose();
+        break;
+      case "Add Members":
+        const membersData = handleMembersData();
+        const addedMembers = await addGroupMembers(
+          membersData,
+          (chat as GroupData).group_id
+        );
+        setGroupMembers &&
+          setGroupMembers((prev) => [...prev, ...addedMembers.addedMembers]);
+        handleClose();
+        toast.success("Members added successfully to the group!");
+        break;
+      default:
+        break;
+    }
   };
 
   return (
     <>
+      <ConfirmDialog
+        open={openConfirm}
+        title="Are you sure?"
+        description="Are you sure you want to discard the changes?"
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
       <Modal open={open} onClose={handleClose}>
         <motion.div
           initial={{ x: 0, opacity: 0 }}
-          animate={{ x: 300, opacity: 1 }}
+          animate={{ x: title === "Select Members" ? 300 : 50, opacity: 1 }}
           exit={{ x: 0, opacity: 0 }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
           style={{
@@ -118,7 +185,7 @@ const SelectMembersDialog: React.FC<Props> = ({
             }}
           >
             <DialogTitle className="bg-blue-600 text-white text-center text-lg">
-              Select Members
+              {title}
             </DialogTitle>
             <DialogContent>
               <TextField
@@ -144,9 +211,9 @@ const SelectMembersDialog: React.FC<Props> = ({
                     </div>
                   ))
                 ) : (
-                  <div
-                    className="p-2 hover:bg-gray-200 cursor-pointer rounded"
-                  >No Data Found</div>
+                  <div className="p-2 hover:bg-gray-200 cursor-pointer rounded">
+                    No Data Found
+                  </div>
                 )}
               </div>
 
@@ -188,7 +255,7 @@ const SelectMembersDialog: React.FC<Props> = ({
               </div>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleClose} color="error">
+              <Button onClick={onClose} color="error">
                 Cancel
               </Button>
               <Button onClick={handleSave} variant="contained">

@@ -5,7 +5,8 @@ import AddExpense from "./AddExpense";
 
 interface MessageInputProps {
   chat: FriendData | GroupData;
-  blockStatus: "BLOCK" | "UNBLOCK";
+  blockStatus?: "BLOCK" | "UNBLOCK";
+  blockStatusGroups?: boolean;
   setSelectedChat: React.Dispatch<
     React.SetStateAction<FriendData | GroupData | null>
   >;
@@ -31,6 +32,7 @@ interface MessageInputProps {
 const MessageInput: React.FC<MessageInputProps> = ({
   chat,
   blockStatus,
+  blockStatusGroups,
   setSelectedChat,
   setExpenses,
   setCombinedView,
@@ -55,7 +57,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       />
       <div
         className={`flex flex-row items-center gap-3 p-2 pt-4 ${
-          blockStatus === "UNBLOCK" ? "cursor-not-allowed" : "cursor-pointer"
+          (blockStatus === "UNBLOCK") || blockStatusGroups ? "cursor-not-allowed" : "cursor-pointer"
         }`}
       >
         <Tooltip title="Add Expense" arrow placement="top">
@@ -63,7 +65,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             onClick={handleAddExpensesOpen}
             variant="contained"
             color="primary"
-            disabled={blockStatus === "UNBLOCK"}
+            disabled={(blockStatus === "UNBLOCK") || blockStatusGroups}
           >
             <AddCircleOutlineRounded />
           </Button>

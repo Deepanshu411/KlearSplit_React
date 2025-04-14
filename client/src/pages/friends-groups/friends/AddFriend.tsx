@@ -69,7 +69,6 @@ const AddFriend: React.FC<AddFriendProps> = ({ open, handleClose }) => {
 
     const handleSubmit = async () => {
         try {
-            console.log(inputValue);
             await addFriend(inputValue.trim()); // Send as a string
             toast.success("Friend added successfully!");
             handleClose(); // Close dialog on success

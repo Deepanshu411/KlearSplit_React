@@ -1,7 +1,7 @@
 interface MembersData {
-  members: [];
-  admins: [];
-  coadmins: [];
+  members: string[];
+  admins?: string[];
+  coadmins?: string[];
 }
 
 interface CreateGroupData {
@@ -90,10 +90,19 @@ interface GroupResponse {
   data: GroupMemberData[];
 }
 
+interface AddMemberResponse {
+  success: string;
+  message: string;
+  data: {
+    addedMembers: GroupMemberData[];
+    notAddedMembers: GroupMemberData[];
+  };
+}
+
 interface UpdateGroupResponse {
   success: string;
   message: string;
-  data: [number, [Group]];
+  data: Group;
 }
 
 interface UpdateMemberResponse {

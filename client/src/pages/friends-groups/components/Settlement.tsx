@@ -10,13 +10,17 @@ import { RootState } from "../../../store";
 import ConfirmDialog from "../../../components/shared/ConfirmDialog";
 import { addExpense } from "../friends/services";
 import { toast } from "sonner";
+import { addSettlements } from "../groups/services";
 
 interface SettlementProps {
   open: boolean;
   handleSettlementClose: () => void;
   chat: FriendData | GroupData | null;
+  setChats: React.Dispatch<React.SetStateAction<FriendData[] | GroupData[]>>;
   setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
-  setGroupExpenses?: React.Dispatch<React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>>;
+  setGroupExpenses?: React.Dispatch<
+    React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>
+  >;
   setCombinedView: React.Dispatch<
     React.SetStateAction<
       (
@@ -28,9 +32,14 @@ interface SettlementProps {
       )[]
     >
   >;
+  setGroupMembers?: React.Dispatch<React.SetStateAction<GroupMemberData[]>>;
+  currentMember?: GroupMemberData;
+  groupPayer?: { fullName: string; imageUrl: string; payerId: string };
+  groupDebtor?: { fullName: string; imageUrl: string; debtorId: string };
+  totalAmount?: number;
 }
 
-const isUserPayer = (chat: FriendData | GroupData | null): boolean => {
+const isUserPayer = (chat: FriendData | null): boolean => {
   if (!chat) return false;
   return parseFloat(chat.balance_amount) < 0;
 };
@@ -39,8 +48,15 @@ const Settlement: React.FC<SettlementProps> = ({
   open,
   handleSettlementClose,
   chat,
+  setChats,
   setExpenses,
+  setGroupExpenses,
   setCombinedView,
+  setGroupMembers,
+  currentMember,
+  groupPayer,
+  groupDebtor,
+  totalAmount,
 }) => {
   const user = useSelector((store: RootState) => store.auth.user);
   const [error, setError] = useState(false);
@@ -59,7 +75,9 @@ const Settlement: React.FC<SettlementProps> = ({
     setOpenConfirm(false);
     handleSettlementClose();
     setSettlementAmount(
-      Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0"
+      (isFriendsConversation(chat!)
+        ? Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2)
+        : totalAmount?.toFixed()) || "0"
     );
     setError(false);
     setHelperText("");
@@ -91,23 +109,126 @@ const Settlement: React.FC<SettlementProps> = ({
         fullName: debtor.fullName,
         imageUrl: debtor.imageUrl ?? "/static/images/avatar/1.jpg",
       });
+    } else {
+      if (!groupPayer || !groupDebtor) return;
+      setPayer({
+        fullName: groupPayer.fullName,
+        imageUrl: groupPayer.imageUrl ?? "/static/images/avatar/1.jpg",
+      });
+      setDebtor({
+        fullName: groupDebtor.fullName,
+        imageUrl: groupDebtor.imageUrl ?? "/static/images/avatar/1.jpg",
+      });
     }
   };
 
   const handleCashPayment = async () => {
-    try {
-      const newExpense = await addExpense(
-        (chat as FriendData).conversation_id,
-        { split_type: "SETTLEMENT", total_amount: settlementAmount }
-      );
-      toast.success("Amount settled successfully!");
-      if (setExpenses) {
-        setExpenses((prev) => [...prev, newExpense]);
-      };
-      setCombinedView((prev) => [...prev, newExpense]);
-      handleSettlementClose();
-    } catch (error) {
-      toast.error("Something went wrong please try again later.");
+    if (isFriendsConversation(chat!)) {
+      try {
+        const newExpense = await addExpense(
+          (chat as FriendData).conversation_id,
+          { split_type: "SETTLEMENT", total_amount: settlementAmount }
+        );
+        const updatedBalanceAmount = isUserPayer(chat)
+          ? (
+              parseFloat(chat.balance_amount) + parseFloat(settlementAmount)
+            ).toFixed(2)
+          : (
+              parseFloat(chat.balance_amount) - parseFloat(settlementAmount)
+            ).toFixed(2);
+        toast.success("Amount settled successfully!");
+        if (setExpenses) {
+          setExpenses((prev) => [...prev, newExpense]);
+        }
+        setCombinedView((prev) => [...prev, newExpense]);
+        setChats((prev) => {
+          const friendChats = prev as FriendData[];
+          return friendChats.map((c) =>
+            c.conversation_id === chat.conversation_id
+              ? { ...c, balance_amount: updatedBalanceAmount }
+              : c
+          );
+        });
+        handleSettlementClose();
+      } catch (error) {
+        toast.error("Something went wrong please try again later.");
+      }
+    } else {
+      try {
+        const newSettlement = await addSettlements(chat?.group_id!, {
+          payer_id: groupPayer?.payerId!,
+          debtor_id: groupDebtor?.debtorId!,
+          settlement_amount: parseFloat(settlementAmount),
+        });
+        const updatedBalanceAmount =
+          groupPayer?.payerId === currentMember?.group_membership_id
+            ? (
+                parseFloat(chat!.balance_amount) + parseFloat(settlementAmount)
+              ).toFixed(2)
+            : (
+                parseFloat(chat!.balance_amount) - parseFloat(settlementAmount)
+              ).toFixed(2);
+        toast.success("Amount settled successfully!");
+        const newSettlementWithPayerDebtor: GroupSettlementData = {
+          ...newSettlement,
+          payer: {
+            fullName: groupPayer?.fullName!,
+            imageUrl: groupPayer?.imageUrl,
+          },
+          debtor: {
+            fullName: groupDebtor?.fullName!,
+            imageUrl: groupDebtor?.imageUrl,
+          }
+        }
+        if (setGroupExpenses) {
+          setGroupExpenses((prev) => [...prev, newSettlementWithPayerDebtor]);
+        }
+        setCombinedView((prev) => [
+          ...prev,
+          { ...newSettlementWithPayerDebtor, type: "Settlement" },
+        ]);
+        setChats((prev) => {
+          const groupChats = prev as GroupData[];
+          return groupChats.map((c) =>
+            c.group_id === chat?.group_id
+              ? { ...c, balance_amount: updatedBalanceAmount }
+              : c
+          );
+        });
+        setGroupMembers &&
+          setGroupMembers((prev) => {
+            return prev.map((member) => {
+              return member.group_membership_id === groupPayer?.payerId
+                ? {
+                    ...member,
+                    balance_with_user: (
+                      parseFloat(member.balance_with_user) +
+                      parseFloat(settlementAmount)
+                    ).toFixed(2),
+                    total_balance: (
+                      parseFloat(member.total_balance) +
+                      parseFloat(settlementAmount)
+                    ).toFixed(2),
+                  }
+                : member.group_membership_id === groupDebtor?.debtorId
+                ? {
+                    ...member,
+                    balance_with_user: (
+                      parseFloat(member.balance_with_user) -
+                      parseFloat(settlementAmount)
+                    ).toFixed(2),
+                    total_balance: (
+                      parseFloat(member.total_balance) -
+                      parseFloat(settlementAmount)
+                    ).toFixed(2),
+                  }
+                : member;
+            });
+          });
+        handleSettlementClose();
+      } catch (error) {
+        toast.error("Something went wrong please try again later.");
+      }
     }
   };
 
@@ -115,9 +236,11 @@ const Settlement: React.FC<SettlementProps> = ({
     if (!open) return;
     handleSetPayer(chat);
     setSettlementAmount(
-      Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0"
+      isFriendsConversation(chat!)
+        ? Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0"
+        : totalAmount?.toFixed(2) || "0"
     );
-  }, [open, chat?.balance_amount]);
+  }, [open, chat?.balance_amount, totalAmount]);
 
   const onChange = (value: string) => {
     setSettlementAmount(value);
@@ -208,7 +331,11 @@ const Settlement: React.FC<SettlementProps> = ({
                 onClick={handleSettlementClose}
                 variant="soft"
                 disabled={
-                  error || settlementAmount === "" || !isUserPayer(chat)
+                  error ||
+                  settlementAmount === "" ||
+                  (isFriendsConversation(chat!) && !isUserPayer(chat)) ||
+                  (!isFriendsConversation(chat!) &&
+                    groupPayer?.payerId !== currentMember?.group_membership_id)
                 }
               >
                 Pay using Paypal

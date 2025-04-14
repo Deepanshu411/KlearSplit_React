@@ -6,20 +6,28 @@ import Settlement from "./Settlement";
 import { toast } from "sonner";
 import { archiveBlockFriend } from "../friends/services";
 import isFriendsConversation from "../utils/getConversationType";
-import { blockGroup } from "../groups/services";
+import { blockGroup, leaveGroup } from "../groups/services";
+import { useNavigate } from "react-router-dom";
+import SelectMembersDialog from "../groups/SelectMembers";
 
 interface ChatHeaderProps {
   currentView: "All" | "Expenses" | "Messages";
   setCurrentView: (value: "All" | "Expenses" | "Messages") => void;
   chat: FriendData | GroupData | null;
+  setChats: React.Dispatch<React.SetStateAction<FriendData[] | GroupData[]>>;
   clearSelectedChat: () => void;
-  blockStatus: "BLOCK" | "UNBLOCK";
-  setBlockStatus: (status: "BLOCK" | "UNBLOCK") => void;
+  blockStatus?: "BLOCK" | "UNBLOCK";
+  setBlockStatus?: (status: "BLOCK" | "UNBLOCK") => void;
+  blockStatusGroups?: boolean;
+  setBlockStatusGroups?: (status: boolean) => void;
   archiveStatus: "ARCHIVE" | "UNARCHIVE";
   setArchiveStatus: (status: "ARCHIVE" | "UNARCHIVE") => void;
   groupMembers?: GroupMemberData[];
+  setGroupMembers?: React.Dispatch<React.SetStateAction<GroupMemberData[]>>;
   setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
-  setGroupExpenses?: React.Dispatch<React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>>;
+  setGroupExpenses?: React.Dispatch<
+    React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>
+  >;
   setCombinedView: React.Dispatch<
     React.SetStateAction<
       (
@@ -39,20 +47,26 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   currentView,
   setCurrentView,
   chat,
+  setChats,
   clearSelectedChat,
   blockStatus,
   setBlockStatus,
+  blockStatusGroups,
+  setBlockStatusGroups,
   archiveStatus,
   setArchiveStatus,
   groupMembers,
+  setGroupMembers,
   setExpenses,
   setGroupExpenses,
   setCombinedView,
 }) => {
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const [settlementOpen, setSettlementOpen] = useState(false);
   const [openViewExpenses, setOpenViewExpenses] = useState(false);
+  const [openAddMembers, setOpenAddMembers] = useState(false);
   const optionsFriends = [
     "Settle Up",
     "View Expenses",
@@ -64,7 +78,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     "Add Members",
     "Settle Up",
     "View Expenses",
-    "Block Group",
+    blockStatusGroups ? "Unblock Group" : "Block Group",
     "Leave Group",
   ];
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -79,16 +93,32 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   };
   const handleCloseSettlement = () => setSettlementOpen(false);
   const handleOpenViewExpenses = () => setOpenViewExpenses(true);
-
   const handleCloseViewExpenses = () => setOpenViewExpenses(false);
+  const handleOpenAddMembers = () => setOpenAddMembers(true);
+  const handleCloseAddMembers = () => setOpenAddMembers(false);
 
   const handleClickBlock = async () => {
     try {
-      isFriendsConversation(chat!)
-        ? await archiveBlockFriend(chat?.conversation_id!, "blocked")
-        : await blockGroup(chat?.group_id!, false);
-      setBlockStatus(blockStatus === "BLOCK" ? "UNBLOCK" : "BLOCK");
-      toast.success(`Conversation ${blockStatus}ED successfully`);
+      if (chat?.balance_amount !== "0") {
+        toast.warning("Please settle up before this action");
+        return;
+      }
+      if (isFriendsConversation(chat!)) {
+        await archiveBlockFriend(chat?.conversation_id!, "blocked");
+        setBlockStatus &&
+          setBlockStatus(blockStatus === "BLOCK" ? "UNBLOCK" : "BLOCK");
+        toast.success(`Conversation ${blockStatus}ED successfully`);
+      } else {
+        if (typeof blockStatusGroups === "undefined" || !setBlockStatusGroups)
+          return;
+        await blockGroup(chat?.group_id!, !blockStatusGroups);
+        setBlockStatusGroups && setBlockStatusGroups(!blockStatusGroups);
+        toast.success(
+          `Conversation ${
+            !blockStatusGroups ? "BLOCKED" : "UNBLOCKED"
+          } successfully`
+        );
+      }
     } catch {
       toast.error("Error Blocking Conversation! Please try again later.");
     }
@@ -104,21 +134,52 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       toast.error("Error Archiving Conversation! Please try again later.");
     }
   };
+
+  const handleClickLeaveGroup = async () => {
+    try {
+      await leaveGroup((chat as GroupData).group_id);
+      setChats((prev) => {
+        const groupChats = prev as GroupData[];
+        return groupChats.filter(
+          (group) => group.group_id !== (chat as GroupData).group_id
+        );
+      });
+      toast.success("Group Left Successfully!");
+    } catch {
+      toast.error("Something went wrong, please try again later!");
+    }
+  };
+
   const handleMenuClick = (option: string) => {
     switch (option) {
       case "Settle Up":
-        handleOpenSettlment();
+        if (isFriendsConversation(chat!)) {
+          handleOpenSettlment();
+        } else {
+          navigate("/groups/details");
+        }
         break;
       case "View Expenses":
         handleOpenViewExpenses();
         break;
       case "Block":
       case "Unblock":
+      case "Block Group":
+      case "Unblock Group":
         handleClickBlock();
         break;
       case "Archive":
       case "Unarchive":
         handleClickArchive();
+        break;
+      case "Group Details":
+        navigate("/groups/details");
+        break;
+      case "Add Members":
+        handleOpenAddMembers();
+        break;
+      case "Leave Group":
+        handleClickLeaveGroup();
         break;
       default:
         break;
@@ -132,6 +193,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         open={settlementOpen}
         handleSettlementClose={handleCloseSettlement}
         chat={chat}
+        setChats={setChats}
         setCombinedView={setCombinedView}
         setExpenses={setExpenses}
         setGroupExpenses={setGroupExpenses}
@@ -141,6 +203,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         open={openViewExpenses}
         onClose={handleCloseViewExpenses}
         groupMembers={groupMembers}
+      />
+      <SelectMembersDialog
+        title="Add Members"
+        open={openAddMembers}
+        handleClose={handleCloseAddMembers}
+        chat={chat!}
+        setGroupMembers={setGroupMembers}
       />
       <div className="flex flex-row items-center justify-between p-1">
         <div className="flex flex-row items-center gap-2">
@@ -155,9 +224,17 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
               "https://randomuser.me/api/portraits/men/9.jpg"
             }
             alt="profile_image"
-            className="h-10 w-10 rounded-full"
+            className="h-10 w-10 rounded-full cursor-pointer"
+            onClick={() => {
+              if (!isFriendsConversation(chat!)) navigate("/groups/details");
+            }}
           />
-          <h5 className="text-lg font-semibold">
+          <h5
+            className="text-lg font-semibold cursor-pointer"
+            onClick={() => {
+              if (!isFriendsConversation(chat!)) navigate("/groups/details");
+            }}
+          >
             {isFriendsConversation(chat!)
               ? chat?.friend.first_name
               : chat?.group_name}

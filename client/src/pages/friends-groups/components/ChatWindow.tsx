@@ -14,7 +14,8 @@ import {
   isGroupOrFriendsExpense,
 } from "../utils/getExpenseType";
 import isUserPayer from "../utils/getGroupPayer";
-import getFullNameAndImage from "../utils/getFullNameAndImage";
+import SettlementDisplay from "./SettlementDisplay";
+import enrichWithPayerDebtor from "../utils/getPayerDebtorData";
 
 type CombinedViewType =
   | CombinedMessage
@@ -83,6 +84,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   const firstLoad = useRef(true);
   const prevView = useRef<"All" | "Expenses" | "Messages" | null>(null);
   const isFetching = useRef(false);
+  const isResettingChat = useRef(false);
 
   // const prevFriendsMessagesLength = useRef(messages?.length ?? 0);
   // const prevFriendsExpensesLength = useRef(expenses?.length ?? 0);
@@ -93,6 +95,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   let content;
 
   const clearSelectedChat = () => {
+    isResettingChat.current = true;
     setMessages && setMessages([]);
     setExpenses && setExpenses([]);
     setGroupMessages && setGroupMessages([]);
@@ -104,24 +107,26 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
     setTimestampMessages(new Date().toISOString());
     setTimestampExpenses(new Date().toISOString());
     setTimestampCombined(new Date().toISOString());
-  }
+    setTimeout(() => {
+      isResettingChat.current = false; // Enable fetching again after reset
+    }, 10);
+  };
   useEffect(() => {
     if (!chat) return;
     clearSelectedChat();
   }, [chat]);
   // 🔹 Function to check if all items are loaded
-  const checkAndSetLoaded =
-    (
-      type: "messages" | "expenses" | "combined",
-      newData: any[],
-      pageSize: number
-    ) => {
-      if (newData.length < pageSize) {
-        if (type === "messages") setAllMessagesLoaded(true);
-        if (type === "expenses") setAllExpensesLoaded(true);
-        if (type === "combined") setAllCombinedLoaded(true);
-      }
-    };
+  const checkAndSetLoaded = (
+    type: "messages" | "expenses" | "combined",
+    newData: any[],
+    pageSize: number
+  ) => {
+    if (newData.length < pageSize) {
+      if (type === "messages") setAllMessagesLoaded(true);
+      if (type === "expenses") setAllExpensesLoaded(true);
+      if (type === "combined") setAllCombinedLoaded(true);
+    }
+  };
 
   const isCombinedExpense = (
     item: CombinedViewType
@@ -145,13 +150,6 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
     item: CombinedViewType
   ): item is CombinedMessage => {
     return (item as CombinedMessage).message_id !== undefined;
-  };
-
-  const enrichWithPayer = (payer_id: string | number) => {
-    const payer = groupMembers?.find(
-      (member) => member.group_membership_id === payer_id
-    );
-    return getFullNameAndImage(payer);
   };
 
   // 🔹 Function to Fetch Data
@@ -253,10 +251,18 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
 
         const newExpensesWithPayer = newExpenses.map((expense) => {
           if (isGroupOrFriendsExpense(expense)) {
-            return {
-              ...expense,
-              payer: enrichWithPayer(expense.payer_id),
-            };
+            if (isGroupExpense(expense)) {
+              return {
+                ...expense,
+                payer: enrichWithPayerDebtor(groupMembers!, expense.payer_id),
+              };
+            } else {
+              return {
+                ...expense,
+                payer: enrichWithPayerDebtor(groupMembers!, expense.payer_id),
+                debtor: enrichWithPayerDebtor(groupMembers!, expense.debtor_id),
+              };
+            }
           }
           return expense;
         });
@@ -265,7 +271,13 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
           if (isCombinedGroupExpense(combined)) {
             return {
               ...combined,
-              payer: enrichWithPayer(combined.payer_id),
+              payer: enrichWithPayerDebtor(groupMembers!, combined.payer_id),
+            };
+          } else if (isCombinedGroupSettlement(combined)) {
+            return {
+              ...combined,
+              payer: enrichWithPayerDebtor(groupMembers!, combined.payer_id),
+              debtor: enrichWithPayerDebtor(groupMembers!, combined.debtor_id),
             };
           }
         });
@@ -342,7 +354,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
 
     observer.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loading) {
+        if (entries[0].isIntersecting && !loading && !isResettingChat.current) {
           fetchData(); // Load older messages when reaching top
         }
       },
@@ -505,29 +517,32 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
               );
             } else if (isCombinedGroupSettlement(item)) {
               return (
-                <ExpenseItem
+                <SettlementDisplay
                   key={index}
-                  expense={{
-                    expense_id: item.group_settlement_id,
-                    expense_name: "Settlement",
-                    payer_id: item.payer_id,
-                    total_amount: item.settlement_amount,
-                    debtor_amount: item.settlement_amount,
+                  settlement={{
+                    settlement_id: item.group_settlement_id,
+                    settlement_amount: item.settlement_amount,
+                    payerId: item.payer_id,
+                    debtorId: item.debtor_id,
+                    description: item.description,
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                   }}
-                  isCurrentUserPayer={
-                    item.payer_id === currentMember?.group_membership_id
-                  }
+                  currentUserId={currentMember?.group_membership_id!}
                   currentUserImageUrl={
                     user?.image_url ||
                     "https://randomuser.me/api/portraits/men/9.jpg"
                   }
-                  imageUrl={
+                  payerName={item.payer.fullName || "Unknown Payer"}
+                  payerImageUrl={
                     item.payer.imageUrl ||
                     "https://randomuser.me/api/portraits/men/9.jpg"
                   }
-                  name={item.payer.fullName || "Unknown Payer"}
+                  debtorName={item.debtor.fullName || "Unknown Debtor"}
+                  debtorImageUrl={
+                    item.debtor.imageUrl ||
+                    "https://randomuser.me/api/portraits/men/9.jpg"
+                  }
                 />
               );
             }
@@ -603,29 +618,32 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                 );
               } else {
                 return (
-                  <ExpenseItem
+                  <SettlementDisplay
                     key={index}
-                    expense={{
-                      expense_id: expense.group_settlement_id,
-                      expense_name: "Settlement",
-                      payer_id: expense.payer_id,
-                      total_amount: expense.settlement_amount,
-                      debtor_amount: expense.settlement_amount,
+                    settlement={{
+                      settlement_id: expense.group_settlement_id,
+                      settlement_amount: expense.settlement_amount,
+                      payerId: expense.payer_id,
+                      debtorId: expense.debtor_id,
+                      description: expense.description,
                       createdAt: expense.createdAt,
                       updatedAt: expense.updatedAt,
                     }}
-                    isCurrentUserPayer={
-                      expense.payer_id === currentMember?.group_membership_id
-                    }
+                    currentUserId={currentMember?.group_membership_id!}
                     currentUserImageUrl={
                       user?.image_url ||
                       "https://randomuser.me/api/portraits/men/9.jpg"
                     }
-                    imageUrl={
+                    payerName={expense.payer.fullName || "Unknown Payer"}
+                    payerImageUrl={
                       expense.payer.imageUrl ||
                       "https://randomuser.me/api/portraits/men/9.jpg"
                     }
-                    name={expense.payer.fullName || "Unknown Payer"}
+                    debtorName={expense.debtor.fullName || "Unknown Debtor"}
+                    debtorImageUrl={
+                      expense.debtor.imageUrl ||
+                      "https://randomuser.me/api/portraits/men/9.jpg"
+                    }
                   />
                 );
               }

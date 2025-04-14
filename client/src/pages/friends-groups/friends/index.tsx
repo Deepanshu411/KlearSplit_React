@@ -145,6 +145,7 @@ const FriendsPage = () => {
             currentView={currentView}
             setCurrentView={setCurrentView}
             chat={selectedFriend}
+            setChats={(friends) => setFriends(friends as FriendData[])}
             clearSelectedChat={clearSelectedFriend}
             blockStatus={blockStatus}
             setBlockStatus={setBlockStatus}

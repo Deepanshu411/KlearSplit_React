@@ -66,6 +66,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, chats, setChats }) => {
         open={openCreateGroup}
         handleClose={handleCloseCreateGroupDialog}
         setGroups={isFriendsConversations(chats) ? undefined : (setChats as React.Dispatch<React.SetStateAction<GroupData[]>>)}
+        title="Create Group"
       />
     </div>
   );

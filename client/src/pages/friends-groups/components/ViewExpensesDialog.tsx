@@ -73,7 +73,6 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
           );
           const expensesWithPayer = data.map((expense) => {
             const payer = groupMembers?.find((member) => expense.payer_id === member.group_membership_id);
-            console.log(payer);
             return { ...expense, payer: getFullNameAndImage(payer) }
           })
           setGroupExpenses(expensesWithPayer);
