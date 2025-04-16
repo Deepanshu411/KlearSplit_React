@@ -23,6 +23,7 @@ interface ChatHeaderProps {
   archiveStatus: "ARCHIVE" | "UNARCHIVE";
   setArchiveStatus: (status: "ARCHIVE" | "UNARCHIVE") => void;
   groupMembers?: GroupMemberData[];
+  currentMember?: GroupMemberData;
   setGroupMembers?: React.Dispatch<React.SetStateAction<GroupMemberData[]>>;
   setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
   setGroupExpenses?: React.Dispatch<
@@ -56,6 +57,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   archiveStatus,
   setArchiveStatus,
   groupMembers,
+  currentMember,
   setGroupMembers,
   setExpenses,
   setGroupExpenses,
@@ -203,10 +205,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         setGroupExpenses={setGroupExpenses}
       />
       <ViewExpensesDialog
-        chat={chat}
+        chat={chat!}
+        setChats={setChats}
         open={openViewExpenses}
         onClose={handleCloseViewExpenses}
-        groupMembers={groupMembers}
+        groupMembers={isFriendsConversation(chat!) ? undefined : groupMembers}
+        currentMember={isFriendsConversation(chat!) ? undefined : currentMember}
+        setCombinedView={setCombinedView}
       />
       <SelectMembersDialog
         title="Add Members"

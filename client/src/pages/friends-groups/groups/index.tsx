@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { fetchGroupMembers, getGroups } from "./services";
+import { fetchGroupMembers, getGroups, saveGroupMessages } from "./services";
 import SearchBar from "../components/SearchBar";
 import SwitchList from "../components/SwitchList";
 import ChatList from "../components/ChatList";
@@ -12,6 +12,8 @@ import { useSelector } from "react-redux";
 import { RootState } from "../../../store";
 import { useLocation } from "react-router-dom";
 import GroupDetailPage from "./GroupDetails";
+import { useSocket } from "../hooks/useSocket";
+import getFullNameAndImage from "../utils/getFullNameAndImage";
 
 const GroupsPage = () => {
   const location = useLocation();
@@ -45,6 +47,52 @@ const GroupsPage = () => {
       | CombinedGroupSettlement
     )[]
   >([]);
+
+  const [message, setMessage] = useState("");
+
+  const {
+    removeNewMessageListener,
+    sendGroupMessage,
+    onNewGroupMessage,
+    leaveRoom,
+  } = useSocket();
+
+  const onSendGroupMessage = async (message: string) => {
+    const messageData = {
+      group_id: selectedGroup?.group_id,
+      sender_id: user?.user_id,
+      message,
+    };
+    sendGroupMessage(messageData);
+  };
+
+  const handleSendMessage = () => {
+    if (message.trim() === "") return; // Prevent sending empty message
+    onSendGroupMessage(message);
+    saveGroupMessages(message.trim(), selectedGroup?.group_id!);
+    setMessage("".trim());
+  };
+
+  useEffect(() => {
+    const handleNewGroupMessage = (message: GroupMessageData) => {
+      const sender = getFullNameAndImage(currentMember);
+      const messageWithSenderAndTime = {
+        ...message,
+        senderName: sender.fullName,
+        senderImage: sender.imageUrl,
+        createdAt: new Date().toISOString(),
+      }
+      setGroupMessages((prevMessages) => [...prevMessages, messageWithSenderAndTime]);
+      setCombinedView((prev) => [...prev, { ...messageWithSenderAndTime, type: "message" }]);
+    };
+
+    onNewGroupMessage(handleNewGroupMessage);
+
+    // Cleanup the listener when the component unmounts or when switching rooms
+    return () => {
+      removeNewMessageListener();
+    };
+  }, [onNewGroupMessage, removeNewMessageListener]);
 
   useEffect(() => {
     setGroupList(groups);
@@ -91,6 +139,7 @@ const GroupsPage = () => {
   };
 
   const clearSelectedGroup = () => {
+    leaveRoom(selectedGroup?.group_id!);
     setSelectedGroup(null);
     setGroupMembers([]);
     setCurrentMember(undefined);
@@ -161,9 +210,7 @@ const GroupsPage = () => {
           title="Groups"
           selected={selected}
           setSelected={setSelected}
-          requestsLength={
-            requests.length
-          }
+          requestsLength={requests.length}
         />
         <ChatList
           chats={filteredGroups}
@@ -224,6 +271,9 @@ const GroupsPage = () => {
             setCombinedView={setCombinedView}
             chatMembers={groupMembers}
             currentMember={currentMember}
+            message={message}
+            setMessage={setMessage}
+            handleSendMessage={handleSendMessage}
           />
         </div>
       ) : (

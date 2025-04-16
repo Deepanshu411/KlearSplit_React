@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { getBalanceAsNumber } from "../utils/getBalanceAsNumber.ts"; // Utility function for balance conversion
-import isFriendsConversation from "../utils/isFriendsConversations.ts";
+import { useSocket } from "../hooks/useSocket.tsx";
+import isFriendsConversations from "../utils/isFriendsConversations.ts";
+import isFriendsConversation from "../utils/getConversationType.ts";
 
 interface ChatListProps {
   chats: FriendData[] | GroupData[];
@@ -8,20 +10,25 @@ interface ChatListProps {
 }
 
 const ChatList: React.FC<ChatListProps> = ({ chats, onSelectConversation }) => {
+  const { joinRoom } = useSocket();
   useEffect(() => {
     const chatList = document.querySelector(".chat-list");
     if (chatList) {
       chatList.scrollTop = chatList.scrollHeight;
     }
   }, [chats]);
+  const handleSelectChat = (chat: FriendData | GroupData) => {
+    onSelectConversation(chat);
+    isFriendsConversation(chat) ? joinRoom(chat.conversation_id) : joinRoom(chat.group_id);
+  }
   return (
     <div className="flex flex-col justify-start items-center w-full min-h-[60vh] max-h-[60vh] overflow-y-auto">
-      {isFriendsConversation(chats)
+      {isFriendsConversations(chats)
         ? chats.map((friend, index) => (
             <div
               key={index}
               className="flex flex-row items-center justify-between w-full p-4 cursor-pointer active:cursor-grabbing"
-              onClick={() => onSelectConversation(friend)}
+              onClick={() => handleSelectChat(friend)}
             >
               <div className="flex flex-row items-center gap-4 w-full">
                 <img
@@ -54,7 +61,7 @@ const ChatList: React.FC<ChatListProps> = ({ chats, onSelectConversation }) => {
             <div
               key={index}
               className="flex flex-row items-center justify-between w-full p-4 cursor-pointer active:cursor-grabbing"
-              onClick={() => onSelectConversation(group)}
+              onClick={() => handleSelectChat(group)}
             >
               <div className="flex flex-row items-center gap-4 w-full">
                 <img

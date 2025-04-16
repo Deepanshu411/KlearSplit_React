@@ -1,5 +1,10 @@
 import { AddCircleOutlineRounded, Send } from "@mui/icons-material";
-import { Button, TextField, InputAdornment, Tooltip } from "@mui/material";
+import {
+  Button,
+  TextField,
+  Tooltip,
+  IconButton,
+} from "@mui/material";
 import React, { useState } from "react";
 import AddExpense from "./AddExpense";
 
@@ -8,7 +13,7 @@ interface MessageInputProps {
   blockStatus?: "BLOCK" | "UNBLOCK";
   blockStatusGroups?: boolean;
   setChats: React.Dispatch<
-    React.SetStateAction<FriendData[] | GroupData[] | null>
+    React.SetStateAction<FriendData[] | GroupData[]>
   >;
   //   setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
   setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
@@ -28,6 +33,9 @@ interface MessageInputProps {
   >;
   chatMembers?: GroupMemberData[];
   currentMember?: GroupMemberData;
+  message: string;
+  setMessage: React.Dispatch<React.SetStateAction<string>>;
+  handleSendMessage: () => void;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -39,6 +47,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
   setCombinedView,
   chatMembers,
   currentMember,
+  message,
+  setMessage,
+  handleSendMessage,
 }) => {
   const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
 
@@ -47,6 +58,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   return (
     <>
       <AddExpense
+        title="Add Expense"
         open={addExpenseDialogOpen}
         chat={chat}
         setChats={setChats}
@@ -81,6 +93,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
           fullWidth
           multiline
           maxRows={2}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
           disabled={blockStatus === "UNBLOCK" || blockStatusGroups}
           sx={
             blockStatus === "UNBLOCK" || blockStatusGroups
@@ -91,14 +106,14 @@ const MessageInput: React.FC<MessageInputProps> = ({
                   cursor: "pointer",
                 }
           }
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <Send />
-              </InputAdornment>
-            ),
-          }}
         />
+        <IconButton
+          color="primary"
+          onClick={handleSendMessage}
+          disabled={blockStatus === "UNBLOCK" || blockStatusGroups}
+        >
+          <Send />
+        </IconButton>
       </div>
     </>
   );

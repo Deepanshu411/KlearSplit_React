@@ -8,7 +8,11 @@ import ChatHeader from "../components/ChatHeader";
 import ChatWindow from "../components/ChatWindow";
 import MessageInput from "../components/MessageInput";
 import { Typography } from "@mui/material";
+import { useSocket } from "../hooks/useSocket";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
 const FriendsPage = () => {
+  const user = useSelector((state: RootState) => state.auth.user);
   const [currentView, setCurrentView] = useState<
     "All" | "Expenses" | "Messages"
   >("All");
@@ -33,6 +37,48 @@ const FriendsPage = () => {
       | CombinedGroupSettlement
     )[]
   >([]);
+  const [message, setMessage] = useState("");
+
+  const {
+    onNewConversationMessage,
+    removeNewMessageListener,
+    sendConversationMessage,
+    leaveRoom,
+  } = useSocket();
+
+  const onSendFriendMessage = async (message: string) => {
+    const messageData = {
+      conversation_id: selectedFriend?.conversation_id,
+      sender_id: user?.user_id,
+      message,
+    };
+    sendConversationMessage(messageData);
+  };
+
+  const handleSendMessage = () => {
+    if (message.trim() === "") return; // Prevent sending empty message
+    onSendFriendMessage(message);
+    setMessage("");
+  };
+
+  useEffect(() => {
+    const handleNewMessage = (message: MessageData) => {
+      const messageWithTime = {
+        ...message,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages && setMessages((prevMessages) => [...prevMessages, messageWithTime]);
+      setCombinedView((prev) => [...prev, { ...messageWithTime, type: "message" }]);
+    };
+
+    // Listen for new conversation messages
+    onNewConversationMessage(handleNewMessage);
+
+    // Cleanup the listener when the component unmounts or when switching rooms
+    return () => {
+      removeNewMessageListener();
+    };
+  }, [onNewConversationMessage, removeNewMessageListener]);
 
   useEffect(() => {
     setFriendsList(friends);
@@ -87,11 +133,12 @@ const FriendsPage = () => {
   };
 
   const clearSelectedFriend = () => {
+    leaveRoom(selectedFriend?.conversation_id!);
     setSelectedFriend(null);
     setMessages([]);
     setExpenses([]);
     setCombinedView([]);
-  }
+  };
 
   useEffect(() => {
     handleListChange();
@@ -168,9 +215,10 @@ const FriendsPage = () => {
           <hr className="border-t-4 border-gray-400" />
           <MessageInput
             chat={selectedFriend}
-            setSelectedChat={(chat) =>
-              setSelectedFriend(chat as FriendData | null)
-            }
+            handleSendMessage={handleSendMessage}
+            message={message}
+            setMessage={setMessage}
+            setChats={(chats) => setFriends(chats as FriendData[])}
             blockStatus={blockStatus}
             setExpenses={setExpenses}
             setCombinedView={setCombinedView}

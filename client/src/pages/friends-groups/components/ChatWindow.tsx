@@ -16,6 +16,7 @@ import {
 import isUserPayer from "../utils/getGroupPayer";
 import SettlementDisplay from "./SettlementDisplay";
 import enrichWithPayerDebtor from "../utils/getPayerDebtorData";
+import { useSocket } from "../hooks/useSocket";
 
 type CombinedViewType =
   | CombinedMessage
@@ -86,15 +87,19 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   const isFetching = useRef(false);
   const isResettingChat = useRef(false);
 
-  // const prevFriendsMessagesLength = useRef(messages?.length ?? 0);
-  // const prevFriendsExpensesLength = useRef(expenses?.length ?? 0);
-  const prevGroupsMessagesLength = useRef(groupMessages?.length ?? 0);
-  const prevGroupsExpensesLength = useRef(groupExpenses?.length ?? 0);
-  const prevCombinedLength = useRef(combinedView?.length ?? 0);
+  const prevFriendsMessages = useRef(messages ?? []);
+  const prevFriendsExpenses = useRef(expenses ?? []);
+  const prevGroupsMessages = useRef(groupMessages ?? []);
+  const prevGroupsExpenses = useRef(groupExpenses ?? []);
+  const prevCombined = useRef(combinedView ?? []);
+  const { leaveRoom } = useSocket();
 
   let content;
 
   const clearSelectedChat = () => {
+    leaveRoom(
+      isFriendsConversation(chat!) ? chat.conversation_id : chat?.group_id!
+    );
     isResettingChat.current = true;
     setMessages && setMessages([]);
     setExpenses && setExpenses([]);
@@ -386,32 +391,57 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   useEffect(() => {
     // Check for new messages
     if (
-      groupMessages &&
-      groupMessages.length > prevGroupsMessagesLength.current
+      messages &&
+      messages[0] &&
+      prevFriendsMessages.current[0] &&
+      messages[0].createdAt > prevFriendsMessages.current[0].createdAt
     ) {
-      prevGroupsMessagesLength.current = groupMessages.length;
+      prevFriendsMessages.current = messages;
       scrollToBottom();
     }
-  }, [messages, scrollToBottom]);
-
-  useEffect(() => {
-    // Check for new expenses
+    if (
+      expenses &&
+      expenses[0] &&
+      prevFriendsExpenses.current[0] &&
+      expenses[0].createdAt > prevFriendsExpenses.current[0].createdAt
+    ) {
+      prevFriendsExpenses.current = expenses;
+      scrollToBottom();
+    }
+    if (
+      groupMessages &&
+      groupMessages[0] &&
+      prevGroupsMessages.current[0] &&
+      groupMessages[0].createdAt > prevGroupsMessages.current[0].createdAt
+    ) {
+      prevGroupsMessages.current = groupMessages;
+      scrollToBottom();
+    }
     if (
       groupExpenses &&
-      groupExpenses.length > prevGroupsExpensesLength.current
+      groupExpenses[0] &&
+      prevGroupsExpenses.current[0] &&
+      groupExpenses[0].createdAt > prevGroupsExpenses.current[0].createdAt
     ) {
-      prevGroupsExpensesLength.current = expenses!.length;
+      prevGroupsExpenses.current = groupExpenses;
       scrollToBottom();
     }
-  }, [expenses, scrollToBottom]);
-
-  useEffect(() => {
-    // Check for new combined items
-    if (combinedView.length > prevCombinedLength.current) {
-      prevCombinedLength.current = combinedView.length;
+    if (
+      combinedView[0] &&
+      prevCombined.current[0] &&
+      combinedView[0].createdAt > prevCombined.current[0].createdAt
+    ) {
+      prevCombined.current = combinedView;
       scrollToBottom();
     }
-  }, [combinedView, scrollToBottom]);
+  }, [
+    messages,
+    expenses,
+    groupMessages,
+    groupExpenses,
+    combinedView,
+    scrollToBottom,
+  ]);
 
   switch (currentView) {
     case "All":

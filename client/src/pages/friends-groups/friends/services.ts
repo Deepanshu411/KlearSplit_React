@@ -146,9 +146,20 @@ export const fetchMessagesAndExpenses = async (
 
 export const fetchAllExpenses = async (conversationId: string) => {
   const params = { fetchAll: true, timestamp: new Date().toISOString() };
-  const response = await axiosInstance.get(
+  const response = await axiosInstance.get<Expense>(
     `${API_URLS.friends.getExpenses}/${conversationId}`,
     { params }
+  );
+  return response.data.data;
+};
+
+export const updateExpense = async (
+  conversationId: string,
+  expenseData: ExpenseInput | SettlementData | FormData,
+) => {
+  const response = await axiosInstance.patch<ExpenseResponse>(
+    `${API_URLS.friends.updateExpense}/${conversationId}`,
+    expenseData,
   );
   return response.data.data;
 };

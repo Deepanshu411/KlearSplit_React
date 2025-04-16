@@ -29,10 +29,11 @@ const VisuallyHiddenInput = styled("input")`
 `;
 
 interface AddExpenseProps {
+  title: "Add Expense" | "Update Expense";
   open: boolean;
   chat: FriendData | GroupData;
   setChats: React.Dispatch<
-    React.SetStateAction<FriendData[] | GroupData[] | null>
+    React.SetStateAction<FriendData[] | GroupData[]>
   >;
   handleAddExpensesClose: () => void;
   //   setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
@@ -53,6 +54,8 @@ interface AddExpenseProps {
   >;
   chatMembers?: GroupMemberData[];
   currentMember?: GroupMemberData;
+  friendsExpenseToUpdate?: ExpenseData;
+  groupsExpenseToUpdate?: GroupExpenseData | GroupSettlementData; 
 }
 
 const isUserPayer = (chat: FriendData | null): boolean => {
@@ -61,6 +64,7 @@ const isUserPayer = (chat: FriendData | null): boolean => {
 };
 
 const AddExpense: React.FC<AddExpenseProps> = ({
+  title,
   open,
   chat,
   setChats,
@@ -313,6 +317,9 @@ const AddExpense: React.FC<AddExpenseProps> = ({
 
       try {
         const newExpense = await addExpense(chat.conversation_id, formData);
+        newExpense.payer = newExpense.payer_id === user?.user_id
+              ? getFullNameAndImage(user)
+              : getFullNameAndImage(chat.friend);
         toast.success("Expense added successfully!");
         if (setExpenses) setExpenses((prev) => [...prev, newExpense]);
         setCombinedView((prev) => [
@@ -527,7 +534,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({
               className="bg-[#3674B5] text-center text-white"
               sx={{ borderRadius: "7px 7px 0px 0px" }}
             >
-              Add Expense
+              {title}
             </DialogTitle>
             <Box className="rounded bg-[white] flex flex-col gap-3 p-3">
               <TextField
