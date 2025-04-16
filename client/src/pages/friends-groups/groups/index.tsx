@@ -218,11 +218,12 @@ const GroupsPage = () => {
           <hr className="border-t-4 border-gray-400" />
           <MessageInput
             chat={selectedGroup}
-            setSelectedChat={(chat) => setSelectedGroup(chat as GroupData)}
+            setChats={(chats) => setGroups(chats as GroupData[])}
             blockStatusGroups={blockStatus}
             setGroupExpenses={setGroupExpenses}
             setCombinedView={setCombinedView}
             chatMembers={groupMembers}
+            currentMember={currentMember}
           />
         </div>
       ) : (

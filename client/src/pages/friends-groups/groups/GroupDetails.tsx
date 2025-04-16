@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Button, CircularProgress, Dialog, DialogContent, IconButton } from "@mui/material";
+import { Button, CircularProgress, IconButton } from "@mui/material";
 import {
   Edit,
   ArrowBack,
-  Save,
   CheckCircleRounded,
   AccountBalance,
 } from "@mui/icons-material";
@@ -323,6 +322,7 @@ const GroupDetailPage: React.FC<GroupDetailPageProps> = ({
       </div>
       <CreateGroup
         open={editGroupDialogOpen}
+        chat={selectedGroup!}
         handleClose={handleUpdateGroupClose}
         title="Update Group"
         setGroups={(groups) => setChats(groups as GroupData[])}

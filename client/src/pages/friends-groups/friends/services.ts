@@ -46,7 +46,7 @@ export const addExpense = async (
   conversationId: string,
   expenseData: SettlementData | ExpenseInput | FormData
 ) => {
-  const expense = await axiosInstance.post(
+  const expense = await axiosInstance.post<ExpenseResponse>(
     `${API_URLS.friends.addExpense}/${conversationId}`,
     expenseData
   );
@@ -163,3 +163,15 @@ export const deleteExpense = async (
   );
   return response.data.data;
 };
+
+export const bulkAddExpenses = async (file: File, conversationId:string) => {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  formData.append("tableName", "friends_expenses");
+  const response = await axiosInstance.post<{
+    status: string;
+    message: string;
+    data: ExpenseData[];
+  }>(`${API_URLS.friends.bulkAddExpenses}/${conversationId}`, formData);
+  return response.data.data
+}

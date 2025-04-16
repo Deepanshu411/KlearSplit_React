@@ -75,7 +75,7 @@ export const saveGroupMessages = async (message: string, groupId: string) => {
   return response.data.data;
 };
 
-export const addExpense = async (groupId: string, expenseData: GroupExpenseInput | FormData) => {
+export const addGroupExpense = async (groupId: string, expenseData: GroupExpenseInput | FormData) => {
   const response = await axiosInstance.post<GroupExpenseResponse>(
     `${API_URLS.groups.addGroupExpense}/${groupId}`,
     expenseData,

@@ -99,7 +99,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   const handleClickBlock = async () => {
     try {
-      if (chat?.balance_amount !== "0") {
+      if (parseFloat(chat?.balance_amount!) !== 0) {
         toast.warning("Please settle up before this action");
         return;
       }
@@ -137,6 +137,10 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 
   const handleClickLeaveGroup = async () => {
     try {
+      if (parseFloat(chat?.balance_amount!) !== 0) {
+        toast.warning("Please settle up before this action");
+        return;
+      }
       await leaveGroup((chat as GroupData).group_id);
       setChats((prev) => {
         const groupChats = prev as GroupData[];

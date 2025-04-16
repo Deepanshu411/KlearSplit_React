@@ -7,8 +7,8 @@ interface MessageInputProps {
   chat: FriendData | GroupData;
   blockStatus?: "BLOCK" | "UNBLOCK";
   blockStatusGroups?: boolean;
-  setSelectedChat: React.Dispatch<
-    React.SetStateAction<FriendData | GroupData | null>
+  setChats: React.Dispatch<
+    React.SetStateAction<FriendData[] | GroupData[] | null>
   >;
   //   setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
   setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
@@ -27,16 +27,18 @@ interface MessageInputProps {
     >
   >;
   chatMembers?: GroupMemberData[];
+  currentMember?: GroupMemberData;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
   chat,
   blockStatus,
   blockStatusGroups,
-  setSelectedChat,
+  setChats,
   setExpenses,
   setCombinedView,
   chatMembers,
+  currentMember,
 }) => {
   const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
 
@@ -47,17 +49,18 @@ const MessageInput: React.FC<MessageInputProps> = ({
       <AddExpense
         open={addExpenseDialogOpen}
         chat={chat}
-        setSelectedChat={(chat) => {
-          setSelectedChat(chat as FriendData);
-        }}
+        setChats={setChats}
         handleAddExpensesClose={handleAddExpensesClose}
         setExpenses={setExpenses}
         setCombinedView={setCombinedView}
         chatMembers={chatMembers}
+        currentMember={currentMember}
       />
       <div
         className={`flex flex-row items-center gap-3 p-2 pt-4 ${
-          (blockStatus === "UNBLOCK") || blockStatusGroups ? "cursor-not-allowed" : "cursor-pointer"
+          blockStatus === "UNBLOCK" || blockStatusGroups
+            ? "cursor-not-allowed"
+            : "cursor-pointer"
         }`}
       >
         <Tooltip title="Add Expense" arrow placement="top">
@@ -65,7 +68,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
             onClick={handleAddExpensesOpen}
             variant="contained"
             color="primary"
-            disabled={(blockStatus === "UNBLOCK") || blockStatusGroups}
+            disabled={blockStatus === "UNBLOCK" || blockStatusGroups}
           >
             <AddCircleOutlineRounded />
           </Button>
@@ -78,7 +81,16 @@ const MessageInput: React.FC<MessageInputProps> = ({
           fullWidth
           multiline
           maxRows={2}
-          disabled={blockStatus === "UNBLOCK"}
+          disabled={blockStatus === "UNBLOCK" || blockStatusGroups}
+          sx={
+            blockStatus === "UNBLOCK" || blockStatusGroups
+              ? {
+                  cursor: "not-allowed",
+                }
+              : {
+                  cursor: "pointer",
+                }
+          }
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">

@@ -140,7 +140,10 @@ const Settlement: React.FC<SettlementProps> = ({
         if (setExpenses) {
           setExpenses((prev) => [...prev, newExpense]);
         }
-        setCombinedView((prev) => [...prev, newExpense]);
+        setCombinedView((prev) => [
+          ...prev,
+          { ...newExpense, type: "expense" },
+        ]);
         setChats((prev) => {
           const friendChats = prev as FriendData[];
           return friendChats.map((c) =>
@@ -178,8 +181,8 @@ const Settlement: React.FC<SettlementProps> = ({
           debtor: {
             fullName: groupDebtor?.fullName!,
             imageUrl: groupDebtor?.imageUrl,
-          }
-        }
+          },
+        };
         if (setGroupExpenses) {
           setGroupExpenses((prev) => [...prev, newSettlementWithPayerDebtor]);
         }

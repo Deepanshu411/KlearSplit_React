@@ -33,6 +33,7 @@ export default {
         getFriends: "/friends/getallfriends",
         archiveBlockRequest: "/friends/archiveblockfriend",
         addExpense: "/friends/addexpense",
+        bulkAddExpenses: "/friends/expenses-bulkcreate",
         getExpenses: "/friends/getexpenses",
         getMessages: "/friends/getmessages",
         getCombined: "/friends/getboth",
