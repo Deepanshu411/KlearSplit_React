@@ -66,10 +66,10 @@ const GroupsPage = () => {
     sendGroupMessage(messageData);
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (message.trim() === "") return; // Prevent sending empty message
     onSendGroupMessage(message);
-    saveGroupMessages(message.trim(), selectedGroup?.group_id!);
+    await saveGroupMessages(message.trim(), selectedGroup?.group_id!);
     setMessage("".trim());
   };
 
@@ -81,9 +81,15 @@ const GroupsPage = () => {
         senderName: sender.fullName,
         senderImage: sender.imageUrl,
         createdAt: new Date().toISOString(),
-      }
-      setGroupMessages((prevMessages) => [...prevMessages, messageWithSenderAndTime]);
-      setCombinedView((prev) => [...prev, { ...messageWithSenderAndTime, type: "message" }]);
+      };
+      setGroupMessages((prevMessages) => [
+        ...prevMessages,
+        messageWithSenderAndTime,
+      ]);
+      setCombinedView((prev) => [
+        ...prev,
+        { ...messageWithSenderAndTime, type: "message" },
+      ]);
     };
 
     onNewGroupMessage(handleNewGroupMessage);
@@ -150,23 +156,14 @@ const GroupsPage = () => {
 
   const handleSelectConversation = async (group: GroupData) => {
     clearSelectedGroup();
+    const groupMembers = await fetchGroupMembers(group.group_id);
+    const currentMember = groupMembers.find(
+      (member) => member.member_id === user?.user_id
+    );
+    setGroupMembers(groupMembers);
+    setCurrentMember(currentMember);
     setSelectedGroup(group);
   };
-
-  useEffect(() => {
-    const fetchMembers = async () => {
-      if (!selectedGroup) return;
-
-      const groupMembers = await fetchGroupMembers(selectedGroup.group_id);
-      const currentMember = groupMembers.find(
-        (member) => member.member_id === user?.user_id
-      );
-      setGroupMembers(groupMembers);
-      setCurrentMember(currentMember);
-    };
-
-    fetchMembers();
-  }, [selectedGroup]);
 
   useEffect(() => {
     handleListChange();

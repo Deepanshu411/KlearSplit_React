@@ -38,14 +38,14 @@ const ExpenseItem: React.FC<ExpenseItemProp> = ({ expense, isCurrentUserPayer, i
             )}
 
             {/* Expense Card */}
-            <div className="flex justify-between items-center max-w-[28vw] max-h-[15vh] bg-black/20 border border-white/5 backdrop-blur-md shadow-md text-[calc(0.5vw+0.5em)] rounded-2xl p-3">
+            <div className="flex justify-between items-center max-w-[48vw] max-h-[22vh] md:max-w-[34vw] md:max-h-[18vh] lg:max-w-[28vw] lg:max-h-[15vh] bg-black/20 border border-white/5 backdrop-blur-md shadow-md text-[calc(0.5vw+0.5em)] rounded-2xl p-3">
                 {/* Status handling */}
                 {startsWithPrefix(expense.expense_id, "adding") ? (
                     <div className="flex items-center justify-center w-[15vw] h-[10vh] text-black rounded-2xl">
                         <p>Adding Expense...</p>
                     </div>
                 ) : startsWithPrefix(expense.expense_id, "error") ? (
-                    <div className="flex items-center justify-around p-3 w-[15vw] h-[10vh] text-black bg-red-400 rounded-2xl">
+                    <div className="flex items-center justify-around p-3 w-[20vw] h-[12vh] lg:w-[15vw] lg:h-[10vh] text-black bg-red-400 rounded-2xl">
                         <button className="btn btn-sm" onClick={() => onRetryExpenseAddition(expense.expense_id)}>
                             Retry
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="inline ml-1" viewBox="0 0 16 16">
@@ -58,7 +58,7 @@ const ExpenseItem: React.FC<ExpenseItemProp> = ({ expense, isCurrentUserPayer, i
                         </div>
                     </div>
                 ) : startsWithPrefix(expense.expense_id, "retry") ? (
-                    <div className="flex items-center justify-center w-[15vw] h-[10vh] text-black">
+                    <div className="flex items-center justify-center w-[20vw] h-[12vh] lg:w-[15vw] lg:h-[10vh] text-black">
                         <div>Retrying...</div>
                     </div>
                 ) : (
@@ -81,7 +81,7 @@ const ExpenseItem: React.FC<ExpenseItemProp> = ({ expense, isCurrentUserPayer, i
                         <div className="bg-transparent border-none text-center">
                             <p className="font-bold">{isCurrentUserPayer ? "You lent" : `${name} lent you`}</p>
                             <p>{expense.debtor_amount}</p>
-                            <div className="flex justify-end items-end w-full text-sm text-gray-700">
+                            <div className="flex justify-end items-end w-full xs:text-sm text-gray-700">
                                 <span>{formatTime(expense.createdAt)}</span>
                             </div>
                         </div>

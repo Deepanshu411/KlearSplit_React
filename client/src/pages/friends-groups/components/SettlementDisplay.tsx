@@ -59,15 +59,8 @@ const SettlementDisplay: React.FC<SettlementDisplayProps> = ({
       )}
 
       <div
-        className="flex flex-col items-start backdrop-blur-md"
-        style={{
-          maxWidth: "28vw",
-          background: "rgba(0, 0, 0, 0.1)",
-          borderRadius: "2em",
-          padding: "1em",
-          border: "2px solid rgba(255, 255, 255, 0.05)",
-          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-        }}
+        className="flex flex-col items-start backdrop-blur-md max-w-[48vw] md:max-w-[34vw] lg:max-w-[28vw] rounded-2xl p-4 border-2 border-white/5 text-sm text-black bg-black/10 shadow-lg"
+        
       >
         <div className="flex justify-between w-full mb-2">
           <div>
