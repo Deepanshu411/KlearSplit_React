@@ -435,7 +435,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                   }
                   currentUserImageUrl={
                     user?.image_url ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/profile.png"
                   }
                   imageUrl={
                     isFriendsConversation(chat!)
@@ -444,7 +444,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                           (member) =>
                             member.group_membership_id === item.sender_id
                         )?.image_url ||
-                        "https://randomuser.me/api/portraits/men/9.jpg"
+                        "/profile.png"
                   }
                   name={
                     isFriendsConversation(chat!)
@@ -472,13 +472,13 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                   isCurrentUserPayer={isUserPayer(user?.user_id!, item.payer_id)}
                   currentUserImageUrl={
                     user?.image_url ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/profile.png"
                   }
                   imageUrl={
                     isFriendsConversation(chat!)
                       ? chat?.friend.image_url
                       : chat?.image_url ||
-                        "https://randomuser.me/api/portraits/men/9.jpg"
+                        "/profile.png"
                   }
                   name={
                     isFriendsConversation(chat!)
@@ -507,11 +507,11 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                   }
                   currentUserImageUrl={
                     user?.image_url ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/profile.png"
                   }
                   imageUrl={
                     item.payer.imageUrl ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/profile.png"
                   }
                   name={item.payer.fullName || "Unknown Payer"}
                 />
@@ -532,17 +532,17 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                   currentUserId={currentMember?.group_membership_id!}
                   currentUserImageUrl={
                     user?.image_url ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/profile.png"
                   }
                   payerName={item.payer.fullName || "Unknown Payer"}
                   payerImageUrl={
                     item.payer.imageUrl ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/profile.png"
                   }
                   debtorName={item.debtor.fullName || "Unknown Debtor"}
                   debtorImageUrl={
                     item.debtor.imageUrl ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/profile.png"
                   }
                 />
               );
@@ -570,11 +570,11 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                 isCurrentUserPayer={isUserPayer(user?.user_id!, expense.payer_id)}
                 currentUserImageUrl={
                   user?.image_url ||
-                  "https://randomuser.me/api/portraits/men/9.jpg"
+                  "/profile.png"
                 }
                 imageUrl={
                   chat?.friend.image_url ||
-                  "https://randomuser.me/api/portraits/men/9.jpg"
+                  "/profile.png"
                 }
                 name={chat?.friend.first_name!}
               />
@@ -608,11 +608,11 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     }
                     currentUserImageUrl={
                       user?.image_url ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                     imageUrl={
                       expense.payer.imageUrl ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                     name={expense.payer.fullName || "Unknown Payer"}
                   />
@@ -633,17 +633,17 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     currentUserId={currentMember?.group_membership_id!}
                     currentUserImageUrl={
                       user?.image_url ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                     payerName={expense.payer.fullName || "Unknown Payer"}
                     payerImageUrl={
                       expense.payer.imageUrl ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                     debtorName={expense.debtor.fullName || "Unknown Debtor"}
                     debtorImageUrl={
                       expense.debtor.imageUrl ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                   />
                 );
@@ -669,11 +669,11 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     isCurrentUser={message.sender_id === user?.user_id}
                     currentUserImageUrl={
                       user?.image_url ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                     imageUrl={
                       chat?.friend.image_url ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                     name={chat?.friend.first_name!}
                   />
@@ -695,14 +695,14 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     isCurrentUser={message.sender_id === user?.user_id}
                     currentUserImageUrl={
                       user?.image_url ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                     imageUrl={
                       groupMembers?.find(
                         (member) =>
                           member.group_membership_id === message.sender_id
                       )?.image_url ||
-                      "https://randomuser.me/api/portraits/men/9.jpg"
+                      "/profile.png"
                     }
                     name={
                       groupMembers?.find(

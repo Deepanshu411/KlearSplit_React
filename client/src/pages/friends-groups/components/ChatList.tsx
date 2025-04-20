@@ -34,7 +34,7 @@ const ChatList: React.FC<ChatListProps> = ({ chats, onSelectConversation }) => {
                 <img
                   src={
                     friend.friend.image_url ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/profile.png"
                   }
                   alt={friend.friend.first_name}
                   className="h-6 w-6 xl:h-10 xl:w-10 rounded-full"
@@ -67,7 +67,7 @@ const ChatList: React.FC<ChatListProps> = ({ chats, onSelectConversation }) => {
                 <img
                   src={
                     group.image_url ||
-                    "https://randomuser.me/api/portraits/men/9.jpg"
+                    "/groupProfile.png"
                   }
                   alt={group.group_name}
                   className="h-6 w-6 xl:h-10 xl:w-10 rounded-full"

@@ -151,8 +151,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openBulkAddExpense, setOpenBulkAddExpense] = useState(false);
 
-  const handleAddedExpenses = (expenses: ExpenseData[]) => {
-    console.log("Newly added expenses:", expenses);
+  const handleAddedExpenses = () => {
     setOpenBulkAddExpense(false);
   };
 
@@ -209,9 +208,6 @@ const AddExpense: React.FC<AddExpenseProps> = ({
             [user?.user_id!]: participant1_share,
             [chat.friend.user_id]: participant2_share,
           }));
-          setTimeout(() => {
-            console.log(unequalShares);
-          }, 1000);
           break;
         }
         case "PERCENTAGE": {
@@ -821,7 +817,6 @@ const AddExpense: React.FC<AddExpenseProps> = ({
           break;
         }
         case "Update Expense": {
-          console.log("code yha aa gya kya glti se");
           if (!groupExpenseToUpdate) return;
           if (!isGroupExpense(groupExpenseToUpdate)) return;
           formData.append(

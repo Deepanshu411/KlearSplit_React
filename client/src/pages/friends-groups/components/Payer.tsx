@@ -116,7 +116,7 @@ const Payer: React.FC<PayerProps> = ({
                           >
                             <Avatar
                               alt="Remy Sharp"
-                              src="/static/images/avatar/1.jpg"
+                              src="/profile.png"
                               sx={{ width: 32, height: 32 }}
                             />
                           </ListItemAvatar>
@@ -177,7 +177,7 @@ const Payer: React.FC<PayerProps> = ({
                           >
                             <Avatar
                               alt="Remy Sharp"
-                              src="/static/images/avatar/1.jpg"
+                              src="/profile.png"
                               sx={{ width: 32, height: 32 }}
                             />
                           </ListItemAvatar>

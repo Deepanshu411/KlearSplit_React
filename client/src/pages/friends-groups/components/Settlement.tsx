@@ -113,21 +113,21 @@ const Settlement: React.FC<SettlementProps> = ({
         : getFullNameAndImage(chat.friend);
       setPayer({
         fullName: payer.fullName,
-        imageUrl: payer.imageUrl ?? "/static/images/avatar/1.jpg",
+        imageUrl: payer.imageUrl ?? "/profile.png",
       });
       setDebtor({
         fullName: debtor.fullName,
-        imageUrl: debtor.imageUrl ?? "/static/images/avatar/1.jpg",
+        imageUrl: debtor.imageUrl ?? "/profile.png",
       });
     } else {
       if (!groupPayer || !groupDebtor) return;
       setPayer({
         fullName: groupPayer.fullName,
-        imageUrl: groupPayer.imageUrl ?? "/static/images/avatar/1.jpg",
+        imageUrl: groupPayer.imageUrl ?? "/profile.png",
       });
       setDebtor({
         fullName: groupDebtor.fullName,
-        imageUrl: groupDebtor.imageUrl ?? "/static/images/avatar/1.jpg",
+        imageUrl: groupDebtor.imageUrl ?? "/profile.png",
       });
     }
   };

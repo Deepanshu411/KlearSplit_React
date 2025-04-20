@@ -7,7 +7,6 @@ export const isFriendsExpense = (
 export const isGroupExpense = (
   item: GroupExpenseData | GroupSettlementData
 ): item is GroupExpenseData => {
-  console.log(item, "item");
   return (item as GroupExpenseData).group_expense_id !== undefined;
 };
 

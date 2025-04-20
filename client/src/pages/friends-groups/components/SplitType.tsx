@@ -352,7 +352,7 @@ const SplitType: React.FC<SplitTypeProps> = ({
                             alt={participant.first_name}
                             src={
                               participant.image_url ??
-                              "/static/images/avatar/1.jpg"
+                              "/profile.png"
                             }
                             sx={{ width: 32, height: 32 }}
                           />
@@ -412,7 +412,7 @@ const SplitType: React.FC<SplitTypeProps> = ({
                             alt={participant.first_name}
                             src={
                               participant.image_url ??
-                              "/static/images/avatar/1.jpg"
+                              "/profile.png"
                             }
                             sx={{ width: 32, height: 32 }}
                           />

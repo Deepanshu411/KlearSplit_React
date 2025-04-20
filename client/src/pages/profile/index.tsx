@@ -77,7 +77,7 @@ const Profile = () => {
       newPassword: "",
       confirmPassword: "",
     });
-  }, [user]);
+  }, [user, activeTab]);
   useEffect(() => {
     const isValid = !Object.entries(passwords).every(
       ([key, value]) => !validatePasswordField(key, value)
@@ -223,6 +223,34 @@ const Profile = () => {
         last_name: "",
         email: "",
         phone: "",
+      });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setProfileUpdateLoader(true);
+    const formData = new FormData();
+    formData.append("password", passwords.currentPassword);
+    formData.append("new_password", passwords.newPassword);
+    try {
+      const updatedUser = await updateUser(user!.user_id, formData);
+      if (updatedUser) {
+        toast.success("Updated Password Successfully");
+      }
+      setPasswords({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      toast.error("Error Updating Password");
+    } finally {
+      setProfileUpdateLoader(false);
+      setIsChangePasswordDisabled(true);
+      setPasswordErrors({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
       });
     }
   };
@@ -533,10 +561,10 @@ const Profile = () => {
             <Button
               className="self-end"
               variant="contained"
-              type="submit"
+              onClick={handleChangePassword}
               disabled={isChangePasswordDisabled}
             >
-              Change Password
+              {profileUpdateLoader ? "Updating..." : "Change Password"}
             </Button>
           </Box>
         )}

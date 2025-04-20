@@ -228,9 +228,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           <img
             src={
               (isFriendsConversation(chat!)
-                ? chat?.friend.image_url
-                : chat?.image_url) ||
-              "https://randomuser.me/api/portraits/men/9.jpg"
+                ? chat?.friend.image_url || "/profile.png"
+                : chat?.image_url) || "/groupProfile.png"
+              
             }
             alt="profile_image"
             className="h-10 w-10 rounded-full cursor-pointer"
