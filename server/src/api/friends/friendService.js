@@ -530,7 +530,7 @@ class FriendService {
     const transaction = await sequelize.transaction();
 
     try {
-      const debtorAmount = calculateDebtorAmount(updatedExpenseData, existingExpense);
+      const debtorAmount = calculateDebtorAmount(userId, updatedExpenseData, existingExpense);
 
       Object.assign(updatedExpenseData, { "debtor_amount": debtorAmount });
 

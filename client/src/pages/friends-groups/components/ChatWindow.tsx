@@ -17,13 +17,8 @@ import isUserPayer from "../utils/getGroupPayer";
 import SettlementDisplay from "./SettlementDisplay";
 import enrichWithPayerDebtor from "../utils/getPayerDebtorData";
 import { useSocket } from "../hooks/useSocket";
+import { CombinedViewType, isCombinedExpense, isCombinedGroupExpense, isCombinedGroupSettlement, isCombinedMessage } from "../utils/getCombinedItemType";
 
-type CombinedViewType =
-  | CombinedMessage
-  | CombinedExpense
-  | CombinedGroupMessage
-  | CombinedGroupExpense
-  | CombinedGroupSettlement;
 interface ChatWindowProp {
   currentView: "All" | "Expenses" | "Messages";
   chat: FriendData | GroupData | null;
@@ -131,30 +126,6 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
       if (type === "expenses") setAllExpensesLoaded(true);
       if (type === "combined") setAllCombinedLoaded(true);
     }
-  };
-
-  const isCombinedExpense = (
-    item: CombinedViewType
-  ): item is CombinedExpense => {
-    return (item as CombinedExpense).friend_expense_id !== undefined;
-  };
-
-  const isCombinedGroupExpense = (
-    item: CombinedViewType
-  ): item is CombinedGroupExpense => {
-    return (item as CombinedGroupExpense).group_expense_id !== undefined;
-  };
-
-  const isCombinedGroupSettlement = (
-    item: CombinedViewType
-  ): item is CombinedGroupSettlement => {
-    return (item as CombinedGroupSettlement).group_settlement_id !== undefined;
-  };
-
-  const isCombinedMessage = (
-    item: CombinedViewType
-  ): item is CombinedMessage => {
-    return (item as CombinedMessage).message_id !== undefined;
   };
 
   // 🔹 Function to Fetch Data
@@ -498,7 +469,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                   }}
-                  isCurrentUserPayer={item.payer_id === user?.user_id}
+                  isCurrentUserPayer={isUserPayer(user?.user_id!, item.payer_id)}
                   currentUserImageUrl={
                     user?.image_url ||
                     "https://randomuser.me/api/portraits/men/9.jpg"
@@ -525,14 +496,14 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     expense_name: item.expense_name,
                     payer_id: item.payer_id,
                     total_amount: item.total_amount,
-                    debtor_amount: isUserPayer(user?.user_id!, item.payer_id)
+                    debtor_amount: isUserPayer(currentMember?.group_membership_id!, item.payer_id)
                       ? item.total_debt_amount
                       : item.user_debt,
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                   }}
                   isCurrentUserPayer={
-                    item.payer_id === currentMember?.group_membership_id
+                    isUserPayer(currentMember?.group_membership_id!, item.payer_id)
                   }
                   currentUserImageUrl={
                     user?.image_url ||
@@ -596,7 +567,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                   createdAt: expense.createdAt,
                   updatedAt: expense.updatedAt,
                 }}
-                isCurrentUserPayer={expense.payer_id === user?.user_id}
+                isCurrentUserPayer={isUserPayer(user?.user_id!, expense.payer_id)}
                 currentUserImageUrl={
                   user?.image_url ||
                   "https://randomuser.me/api/portraits/men/9.jpg"
@@ -624,7 +595,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                       payer_id: expense.payer_id,
                       total_amount: expense.total_amount,
                       debtor_amount: isUserPayer(
-                        user?.user_id!,
+                        currentMember?.group_membership_id!,
                         expense.payer_id
                       )
                         ? expense.total_debt_amount
@@ -633,7 +604,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                       updatedAt: expense.updatedAt,
                     }}
                     isCurrentUserPayer={
-                      expense.payer_id === currentMember?.group_membership_id
+                      isUserPayer(currentMember?.group_membership_id!, expense.payer_id)
                     }
                     currentUserImageUrl={
                       user?.image_url ||

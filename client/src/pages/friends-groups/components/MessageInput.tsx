@@ -60,6 +60,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       <AddExpense
         title="Add Expense"
         open={addExpenseDialogOpen}
+        setOpen={setAddExpenseDialogOpen}
         chat={chat}
         setChats={setChats}
         handleAddExpensesClose={handleAddExpensesClose}
@@ -91,6 +92,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
           name="message_input"
           size="small"
           fullWidth
+          focused
           multiline
           maxRows={2}
           value={message}

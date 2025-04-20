@@ -201,7 +201,7 @@ export const fetchAllExpensesAndSettlements = async (groupId: string) => {
   return response.data.data;
 };
 
-export const updateExpense = async (groupId: string, data: GroupExpenseInput | FormData) => {
+export const updateGroupExpense = async (groupId: string, data: GroupExpenseInput | FormData) => {
   const response = await axiosInstance.patch<GroupExpenseResponse>(
     `${API_URLS.groups.updateGroupExpense}/${groupId}`,
     data,

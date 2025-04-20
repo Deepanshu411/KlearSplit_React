@@ -32,6 +32,12 @@ import { isGroupExpense } from "../utils/getExpenseType";
 import isFriendsConversation from "../utils/getConversationType";
 import getFullNameAndImage from "../utils/getFullNameAndImage";
 import AddExpense from "./AddExpense";
+import {
+  isCombinedExpense,
+  isCombinedGroupExpense,
+  isCombinedGroupSettlement,
+} from "../utils/getCombinedItemType";
+import ConfirmDialog from "../../../components/shared/ConfirmDialog";
 
 interface ViewExpensesDialogProps {
   chat: FriendData | GroupData;
@@ -78,10 +84,58 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
 
   const [loading, setLoading] = useState(true);
   const [deleteLoader, setDeleteLoader] = useState<string | null>(null);
+  const [friendExpenseToUpdate, setFriendExpenseToUpdate] =
+    useState<ExpenseData>();
+  const [groupExpenseToUpdate, setGroupExpenseToUpdate] = useState<
+    GroupExpenseData | GroupSettlementData
+  >();
   const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<{
+    id: string;
+    isGroup: boolean;
+    isExpense: boolean;
+  } | null>(null);
+
+  const openConfirmDeleteDialog = (
+    id: string,
+    isGroup: boolean,
+    isExpense: boolean
+  ) => {
+    setExpenseToDelete({ id, isGroup, isExpense });
+    setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!expenseToDelete) return;
+
+    const { id, isGroup, isExpense } = expenseToDelete;
+
+    if (isGroup) {
+      await handleGroupExpenseDelete(
+        (chat as GroupData).group_id,
+        id,
+        isExpense
+      );
+    } else {
+      await handleDelete((chat as FriendData).conversation_id, id);
+    }
+
+    setConfirmDialogOpen(false);
+    setExpenseToDelete(null);
+  };
 
   const handleAddExpensesClose = () => setAddExpenseDialogOpen(false);
-  const handleAddExpensesOpen = () => setAddExpenseDialogOpen(true);
+  const handleFriendUpdateExpenseOpen = (expense: ExpenseData) => {
+    setFriendExpenseToUpdate(expense);
+    setAddExpenseDialogOpen(true);
+  };
+  const handleGroupUpdateExpenseOpen = (
+    expense: GroupExpenseData | GroupSettlementData
+  ) => {
+    setGroupExpenseToUpdate(expense);
+    setAddExpenseDialogOpen(true);
+  };
 
   useEffect(() => {
     const getAllExpenses = async () => {
@@ -129,6 +183,11 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
       setFriendExpenses((prev) =>
         prev.filter((e) => e.friend_expense_id !== expenseId)
       );
+      setCombinedView((prev) =>
+        prev.filter((e) =>
+          isCombinedExpense(e) ? e.friend_expense_id !== expenseId : e
+        )
+      );
       const updatedBalanceAmount =
         expenseToBeDeleted?.payer_id === user?.user_id
           ? (
@@ -173,6 +232,15 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
           isGroupExpense(e)
             ? e.group_expense_id !== expenseId
             : e.group_settlement_id !== expenseId
+        )
+      );
+      setCombinedView((prev) =>
+        prev.filter((e) =>
+          isCombinedGroupExpense(e)
+            ? e.group_expense_id !== expenseId
+            : isCombinedGroupSettlement(e)
+            ? e.group_settlement_id !== expenseId
+            : e
         )
       );
       const updatedBalanceAmount =
@@ -306,6 +374,18 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
 
   return (
     <>
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onCancel={() => {
+          setConfirmDialogOpen(false);
+          setExpenseToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Expense"
+        description="Are you sure you want to delete this expense? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
       <AddExpense
         title="Update Expense"
         open={addExpenseDialogOpen}
@@ -315,6 +395,10 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
         chatMembers={groupMembers}
         currentMember={currentMember}
         setCombinedView={setCombinedView}
+        friendExpenseToUpdate={friendExpenseToUpdate}
+        groupExpenseToUpdate={groupExpenseToUpdate}
+        setFriendExpensesView={setFriendExpenses}
+        setGroupExpensesView={setGroupExpenses}
       />
       <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
         <DialogTitle className="bg-blue-600 text-white text-center py-3">
@@ -352,23 +436,28 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
                           <TableCell>₹{expense.debtor_amount}</TableCell>
                           <TableCell>{expense.description || "--"}</TableCell>
                           <TableCell className="flex flex-row">
-                            <Tooltip title="Edit" placement="top">
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={handleAddExpensesOpen}
-                              >
-                                <Edit />
-                              </IconButton>
-                            </Tooltip>
+                            {expense.split_type !== "SETTLEMENT" && (
+                              <Tooltip title="Edit" placement="top">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() =>
+                                    handleFriendUpdateExpenseOpen(expense)
+                                  }
+                                >
+                                  <Edit />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                             <Tooltip title="Delete" placement="top">
                               <IconButton
                                 size="small"
                                 color="error"
                                 onClick={() =>
-                                  handleDelete(
-                                    chat?.conversation_id!,
-                                    expense.friend_expense_id
+                                  openConfirmDeleteDialog(
+                                    expense.friend_expense_id, // or expense.group_expense_id / group_settlement_id
+                                    !isFriendsConversation(chat),
+                                    false
                                   )
                                 }
                                 disabled={!!deleteLoader}
@@ -412,32 +501,39 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
                           <TableCell>
                             ₹
                             {isGroupExpense(expense)
-                              ? isUserPayer(user?.user_id!, expense.payer_id)
+                              ? isUserPayer(
+                                  currentMember?.group_membership_id!,
+                                  expense.payer_id
+                                )
                                 ? expense.total_debt_amount
                                 : expense.user_debt
                               : expense.settlement_amount}
                           </TableCell>
                           <TableCell>{expense.description || "--"}</TableCell>
                           <TableCell className="flex flex-row">
-                            <Tooltip title="Edit" placement="top">
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={handleAddExpensesOpen}
-                              >
-                                <Edit />
-                              </IconButton>
-                            </Tooltip>
+                            {isGroupExpense(expense) && (
+                              <Tooltip title="Edit" placement="top">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() =>
+                                    handleGroupUpdateExpenseOpen(expense)
+                                  }
+                                >
+                                  <Edit />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                             <Tooltip title="Delete" placement="top">
                               <IconButton
                                 size="small"
                                 color="error"
                                 onClick={() =>
-                                  handleGroupExpenseDelete(
-                                    (chat as GroupData)?.group_id!,
+                                  openConfirmDeleteDialog(
                                     isGroupExpense(expense)
                                       ? expense.group_expense_id
-                                      : expense.group_settlement_id,
+                                      : expense.group_settlement_id, // or expense.group_expense_id / group_settlement_id
+                                    !isFriendsConversation(chat),
                                     isGroupExpense(expense)
                                   )
                                 }

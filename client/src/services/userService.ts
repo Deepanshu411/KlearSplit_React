@@ -12,4 +12,9 @@ export const searchUser = async (query: string, fetchAll: boolean = false ) => {
   return user.data.data;
 };
 
+export const updateUser = async (id: string, updatedUser: User | FormData) => {
+  const response = await axiosInstance.patch(`${API_URLS.user.updateProfile}/${id}`, updatedUser);
+  return response.data.data;
+}
+
 export default getUser;

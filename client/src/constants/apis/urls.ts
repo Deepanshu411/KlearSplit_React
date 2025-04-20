@@ -57,5 +57,8 @@ export default {
         deleteGroupSettlement: "/groups/deletesettlement",
         updateGroupExpense: "/groups/updateexpense",
         updateGroupSettlement: "/groups/updatesettlement",
+    },
+    payment: {
+        createPayment: "/payments/create-payment",
     }
 };

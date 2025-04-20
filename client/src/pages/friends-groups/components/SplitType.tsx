@@ -24,6 +24,10 @@ interface SplitTypeProps {
   chat: FriendData | GroupData;
   participants?: User[];
   groupParticipants?: GroupMemberData[];
+  selectedGroupParticipants?: GroupMemberData[];
+  setSelectedGroupParticipants?: React.Dispatch<
+    React.SetStateAction<GroupMemberData[]>
+  >;
   totalAmount: number;
   handleSplitTypeClose: () => void;
   splitType: "EQUAL" | "UNEQUAL" | "PERCENTAGE";
@@ -40,6 +44,8 @@ interface SplitTypeProps {
   setPercentageShares: React.Dispatch<
     React.SetStateAction<{ [key: string]: number }>
   >;
+  isUpdateMode?: boolean;
+  groupExpenseToUpdate?: GroupExpenseData;
 }
 
 const SplitType: React.FC<SplitTypeProps> = ({
@@ -47,6 +53,8 @@ const SplitType: React.FC<SplitTypeProps> = ({
   chat,
   participants,
   groupParticipants,
+  selectedGroupParticipants,
+  setSelectedGroupParticipants,
   totalAmount,
   handleSplitTypeClose,
   splitType,
@@ -57,15 +65,19 @@ const SplitType: React.FC<SplitTypeProps> = ({
   setUnequalShares,
   percentageShares,
   setPercentageShares,
+  isUpdateMode,
+  groupExpenseToUpdate,
 }) => {
   const [isValid, setIsValid] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [localGroupParticipants, setLocalGroupParticipants] = useState<GroupMemberData[]>([]);
+  const [localGroupParticipants, setLocalGroupParticipants] = useState<
+    GroupMemberData[]
+  >([]);
 
   useEffect(() => {
     groupParticipants && setLocalGroupParticipants(groupParticipants);
-  }, []);
+  }, [groupParticipants]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -73,6 +85,14 @@ const SplitType: React.FC<SplitTypeProps> = ({
   }, [splitType]);
 
   useEffect(() => {
+    if (isUpdateMode && selectedGroupParticipants && splitType === "EQUAL") {
+      const ids = selectedGroupParticipants.map((p) => p.group_membership_id);
+      setSelectedIds(ids);
+    }
+  }, [open, isUpdateMode, selectedGroupParticipants, splitType]);
+
+  useEffect(() => {
+    if (isUpdateMode) return;
     if (isFriendsConversation(chat) && participants) {
       switch (splitType) {
         case "EQUAL":
@@ -155,7 +175,13 @@ const SplitType: React.FC<SplitTypeProps> = ({
           break;
       }
     }
-  }, [splitType, participants, localGroupParticipants, totalAmount]);
+  }, [
+    splitType,
+    participants,
+    localGroupParticipants,
+    selectedGroupParticipants,
+    totalAmount,
+  ]);
 
   useEffect(() => {
     let total = 0;
@@ -215,11 +241,53 @@ const SplitType: React.FC<SplitTypeProps> = ({
   };
 
   const confirmSelectedParticipants = () => {
+    const filtered = localGroupParticipants.filter((p) =>
+      selectedIds.includes(p.group_membership_id)
+    );
     if (splitType === "EQUAL") {
-      const filtered = localGroupParticipants.filter((p) =>
-        selectedIds.includes(p.group_membership_id)
-      );
       setLocalGroupParticipants(filtered);
+      if (
+        isUpdateMode &&
+        groupExpenseToUpdate &&
+        selectedGroupParticipants &&
+        setSelectedGroupParticipants
+      ) {
+        setSelectedGroupParticipants(filtered);
+        const equalShare =
+          parseFloat(groupExpenseToUpdate.total_amount) /
+          selectedGroupParticipants.length;
+        let sumSoFar = 0;
+
+        const updatedShares = selectedGroupParticipants.reduce(
+          (acc, participant, index) => {
+            const isLast = index === selectedGroupParticipants.length - 1;
+            const id = participant.group_membership_id;
+
+            let share;
+
+            if (isLast) {
+              // Assign remaining amount to the last participant
+              share =
+                Math.round(
+                  (parseFloat(groupExpenseToUpdate.total_amount) - sumSoFar) *
+                    100
+                ) / 100;
+            } else {
+              share = Math.round(equalShare * 100) / 100;
+              sumSoFar += share;
+            }
+
+            // Only include non-zero shares
+            if (share !== 0) {
+              acc[id] = share;
+            }
+
+            return acc;
+          },
+          {} as { [key: string]: number }
+        );
+        setEqualShares(updatedShares);
+      }
     }
     handleSplitTypeClose();
   };
@@ -339,12 +407,6 @@ const SplitType: React.FC<SplitTypeProps> = ({
                       key={participant.group_membership_id}
                     >
                       <ListItemButton sx={{ paddingX: 1 }}>
-                        {splitType === "EQUAL" && (
-                          <Checkbox
-                            checked={selectedIds.includes(participant.group_membership_id)}
-                            onChange={() => handleCheckboxChange(participant.group_membership_id)}
-                          />
-                        )}
                         <ListItemAvatar sx={{ minWidth: 32, paddingRight: 1 }}>
                           <Avatar
                             alt={participant.first_name}
@@ -362,41 +424,50 @@ const SplitType: React.FC<SplitTypeProps> = ({
                             </Box>
                           }
                         />
-                        <TextField
-                          type="number"
-                          size="small"
-                          value={
-                            splitType === "EQUAL"
-                              ? equalShares[participant.group_membership_id]
-                              : splitType === "UNEQUAL"
-                              ? unequalShares[
-                                  participant.group_membership_id
-                                ] || ""
-                              : percentageShares[
-                                  participant.group_membership_id
-                                ] || ""
-                          }
-                          disabled={splitType === "EQUAL"}
-                          onChange={(e) =>
-                            handleChange(
-                              participant.group_membership_id,
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                          className={
-                            splitType === "EQUAL" ? "cursor-not-allowed" : ""
-                          }
-                          sx={{ maxWidth: 80 }}
-                        />
+                        {splitType === "EQUAL" ? (
+                          <Checkbox
+                            checked={selectedIds.includes(
+                              participant.group_membership_id
+                            )}
+                            onChange={() =>
+                              handleCheckboxChange(
+                                participant.group_membership_id
+                              )
+                            }
+                          />
+                        ) : (
+                          <TextField
+                            type="number"
+                            size="small"
+                            value={
+                              splitType === "UNEQUAL"
+                                ? unequalShares[
+                                    participant.group_membership_id
+                                  ] || ""
+                                : percentageShares[
+                                    participant.group_membership_id
+                                  ] || ""
+                            }
+                            onChange={(e) =>
+                              handleChange(
+                                participant.group_membership_id,
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            sx={{ maxWidth: 80 }}
+                          />
+                        )}
                       </ListItemButton>
                     </ListItem>
                     <Divider />
                   </>
                 ))}
-            <Typography align="center" className="p-3">
-              {totalAllocated} out of{" "}
-              {splitType === "PERCENTAGE" ? 100 : totalAmount} left
-            </Typography>
+            {splitType !== "EQUAL" && (
+              <Typography align="center" className="p-3">
+                {totalAllocated} out of{" "}
+                {splitType === "PERCENTAGE" ? 100 : totalAmount} left
+              </Typography>
+            )}
             {errorMessage && (
               <Typography color="error" align="center">
                 {errorMessage}

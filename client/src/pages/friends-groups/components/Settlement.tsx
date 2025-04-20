@@ -1,6 +1,13 @@
 import "./Settlement.css";
 import { ModalDialog } from "@mui/joy";
-import { Modal, DialogTitle, Box, Avatar, TextField } from "@mui/material";
+import {
+  Modal,
+  DialogTitle,
+  Box,
+  Avatar,
+  TextField,
+  CircularProgress,
+} from "@mui/material";
 import { useEffect, useState } from "react";
 import Button from "@mui/joy/Button";
 import isFriendsConversation from "../utils/getConversationType";
@@ -11,6 +18,7 @@ import ConfirmDialog from "../../../components/shared/ConfirmDialog";
 import { addExpense } from "../friends/services";
 import { toast } from "sonner";
 import { addSettlements } from "../groups/services";
+import createPayment from "../services/settlementService";
 
 interface SettlementProps {
   open: boolean;
@@ -70,6 +78,8 @@ const Settlement: React.FC<SettlementProps> = ({
     imageUrl: string;
   }>();
   const [openConfirm, setOpenConfirm] = useState(false);
+  const [paymentLoader, setPaymentLoader] = useState(false);
+  const [paypalLoader, setPaypalLoader] = useState(false);
 
   const handleConfirm = () => {
     setOpenConfirm(false);
@@ -122,7 +132,39 @@ const Settlement: React.FC<SettlementProps> = ({
     }
   };
 
+  const payWithPayPal = async () => {
+    setPaypalLoader(true);
+
+    try {
+      if (isFriendsConversation(chat!)) {
+        const response = await createPayment(
+          parseFloat(settlementAmount),
+          chat.conversation_id,
+          isUserPayer(chat!) ? user?.user_id! : chat.friend.user_id!,
+          isUserPayer(chat!) ? chat.friend.user_id! : user?.user_id!,
+          "friends"
+        );
+        window.location.href = response;
+      } else {
+        const response = await createPayment(
+          parseFloat(settlementAmount),
+          chat!.group_id,
+          groupPayer?.payerId!,
+          groupDebtor?.debtorId!,
+          "groups"
+        );
+        window.location.href = response;
+      }
+    } catch (error) {
+      toast.error("Something went wrong please try again later.");
+    } finally {
+      setPaypalLoader(false);
+      handleSettlementClose();
+    }
+  };
+
   const handleCashPayment = async () => {
+    setPaymentLoader(true);
     if (isFriendsConversation(chat!)) {
       try {
         const newExpense = await addExpense(
@@ -155,6 +197,8 @@ const Settlement: React.FC<SettlementProps> = ({
         handleSettlementClose();
       } catch (error) {
         toast.error("Something went wrong please try again later.");
+      } finally {
+        setPaymentLoader(false);
       }
     } else {
       try {
@@ -231,6 +275,8 @@ const Settlement: React.FC<SettlementProps> = ({
         handleSettlementClose();
       } catch (error) {
         toast.error("Something went wrong please try again later.");
+      } finally {
+        setPaymentLoader(false);
       }
     }
   };
@@ -328,10 +374,19 @@ const Settlement: React.FC<SettlementProps> = ({
                 variant="soft"
                 disabled={error || settlementAmount === ""}
               >
-                Record as Cash Payment
+                {paymentLoader ? (
+                  <div className="flex justify-center items-center gap-2">
+                    <span>Processing...</span>{" "}
+                    <span>
+                      <CircularProgress size={20} />
+                    </span>
+                  </div>
+                ) : (
+                  "Record as Cash Payment"
+                )}
               </Button>
               <Button
-                onClick={handleSettlementClose}
+                onClick={payWithPayPal}
                 variant="soft"
                 disabled={
                   error ||
@@ -341,7 +396,16 @@ const Settlement: React.FC<SettlementProps> = ({
                     groupPayer?.payerId !== currentMember?.group_membership_id)
                 }
               >
-                Pay using Paypal
+                {paypalLoader ? (
+                  <div className="flex justify-center items-center gap-2">
+                    <span>Processing...</span>{" "}
+                    <span>
+                      <CircularProgress size={20} />
+                    </span>
+                  </div>
+                ) : (
+                  "Pay with PayPal"
+                )}
               </Button>
             </Box>
             <Box className="flex justify-end items-center p-3 gap-3">

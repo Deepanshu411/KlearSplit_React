@@ -245,6 +245,7 @@ const GroupsPage = () => {
             archiveStatus={archiveStatus}
             setArchiveStatus={setArchiveStatus}
             groupMembers={groupMembers}
+            currentMember={currentMember}
             setGroupMembers={setGroupMembers}
             setCombinedView={setCombinedView}
             setGroupExpenses={setGroupExpenses}

@@ -9,6 +9,7 @@ import {
   Tooltip,
   IconButton,
 } from "@mui/material";
+import { CloudUploadOutlined } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { Close } from "@mui/icons-material";
@@ -287,9 +288,10 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
               <div className="flex flex-col items-center gap-2">
                 <label
                   htmlFor="profile-image"
-                  className="text-blue-600 cursor-pointer"
+                  className="text-inherit cursor-pointer border-2 border-gray-300 w-full text-center p-2"
                 >
-                  {image ? image.name : "Upload Group Image"}
+                  <CloudUploadOutlined className="text-gray-500 me-2" />
+                  <span className="text-gray-500">{image ? image.name : "Upload Group Image"}</span>
                 </label>
                 <input
                   type="file"
@@ -341,8 +343,8 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
             </DialogContent>
             <DialogActions>
               <Button onClick={onClose}>Cancel</Button>
-              <Button type="submit" onClick={handleSubmit}>
-                Submit
+              <Button type="submit" onClick={handleSubmit} disabled={!groupName}>
+                {title === "Update Group" ? "Update" : "Create"} Group
               </Button>
             </DialogActions>
           </ModalDialog>

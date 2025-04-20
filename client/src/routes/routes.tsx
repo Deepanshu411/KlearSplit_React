@@ -9,6 +9,7 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import FriendsPage from "../pages/friends-groups/friends";
 import GroupsPage from "../pages/friends-groups/groups";
 import GroupDetailPage from "../pages/friends-groups/groups/GroupDetails";
+import Profile from "../pages/profile";
 
 export const router = createBrowserRouter([
   {
@@ -66,6 +67,10 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      {
+        path: "profile",
+        element: <Profile />,
+      }
     ],
   },
 ]);
