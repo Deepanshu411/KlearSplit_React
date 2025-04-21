@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getFriends } from "./services";
+import { acceptRejectFriendRequest, getFriends } from "./services";
 import { toast } from "sonner";
 import SearchBar from "../components/SearchBar";
 import SwitchList from "../components/SwitchList";
@@ -55,9 +55,9 @@ const FriendsPage = () => {
       leaveRoom(friend.conversation_id);
       return;
     }
-    setSelectedFriend(friend)
+    setSelectedFriend(friend);
     joinRoom(friend.conversation_id);
-  }
+  };
 
   const onSendFriendMessage = (message: string) => {
     const messageData = {
@@ -111,13 +111,18 @@ const FriendsPage = () => {
     switch (selected) {
       case "Friends":
         setFilteredFriends(
-          friendsList.filter(
-            (friend) =>
-              friend.friend.first_name
-                .toLowerCase()
-                .includes(lowercasedQuery) ||
-              friend.friend.email.toLowerCase().includes(lowercasedQuery)
-          )
+          friendsList
+            .filter(
+              (friend) =>
+                friend.friend.first_name
+                  .toLowerCase()
+                  .includes(lowercasedQuery) ||
+                friend.friend.email.toLowerCase().includes(lowercasedQuery)
+            )
+            .map((friend) => ({
+              ...friend,
+              isRequest: false,
+            }))
         );
         break;
       case "Requests":
@@ -139,13 +144,47 @@ const FriendsPage = () => {
   const handleListChange = () => {
     switch (selected) {
       case "Friends":
-        setFilteredFriends(friends);
+        setFilteredFriends(
+          friends.map((friend) => ({
+            ...friend,
+            isRequest: false,
+          }))
+        );
         break;
       case "Requests":
-        setFilteredFriends(requests);
+        setFilteredFriends(
+          requests.map((request) => ({
+            ...request,
+            isRequest: true,
+          }))
+        );
         break;
       default:
         break;
+    }
+  };
+
+  const handleAcceptRejectRequest = async (
+    friend: FriendData,
+    status: "ACCEPTED" | "REJECTED"
+  ) => {
+    try {
+      await acceptRejectFriendRequest(
+        friend.conversation_id,
+        status
+      );
+      setRequests((prev) =>
+        prev.filter(
+          (request) => request.conversation_id !== friend.conversation_id
+        )
+      );
+      if (status === "ACCEPTED") {
+        setFriends((prev) => [...prev, { ...friend, isRequest: false }]);
+        setSelected("Friends");
+      }
+      toast.success(`Request ${status.toLowerCase()} successfully`);
+    } catch (error) {
+      toast.error("Failed to update request");
     }
   };
 
@@ -197,6 +236,9 @@ const FriendsPage = () => {
           chats={filteredFriends}
           handleSelectChat={(friend) =>
             handleSelectFriend(friend as FriendData)
+          }
+          handleAcceptReject={(friend, status) =>
+            handleAcceptRejectRequest(friend as FriendData, status)
           }
         />
       </div>

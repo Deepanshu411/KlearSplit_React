@@ -13,6 +13,7 @@ interface FriendData {
   archival_status: string;
   block_status: string;
   friend: AddedFriend;
+  isRequest: boolean;
 }
 
 interface Friend {

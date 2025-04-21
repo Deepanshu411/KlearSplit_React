@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { fetchGroupMembers, getGroups, saveGroupMessages } from "./services";
+import { acceptRejectInvite, fetchGroupMembers, getGroups, saveGroupMessages } from "./services";
 import SearchBar from "../components/SearchBar";
 import SwitchList from "../components/SwitchList";
 import ChatList from "../components/ChatList";
@@ -138,6 +138,27 @@ const GroupsPage = () => {
     }
   };
 
+  const handleAcceptRejectInvite = async (
+    group: GroupData,
+    action: "ACCEPTED" | "REJECTED"
+  ) => {
+    try {
+      await acceptRejectInvite(
+        group.group_id,
+        action
+      );
+      const updatedGroups = await getGroups();
+      setGroups(updatedGroups.acceptedGroups);
+      setRequests(updatedGroups.invitedGroups);
+      toast.success(
+        `Group invite ${action.toLowerCase()} successfully`
+      );
+      setSelected("Groups");
+    } catch (error) {
+      toast.error(`Failed to ${action === "ACCEPTED" ? "accept" : "reject"} group invite`);
+    }
+  }
+
   const clearSelectedGroup = () => {
     setSelectedGroup(null);
     setGroupMembers([]);
@@ -210,6 +231,9 @@ const GroupsPage = () => {
           chats={filteredGroups}
           handleSelectChat={(group) =>
             handleSelectConversation(group as GroupData)
+          }
+          handleAcceptReject={(group, status) =>
+            handleAcceptRejectInvite(group as GroupData, status)
           }
         />
       </div>
