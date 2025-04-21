@@ -1,4 +1,3 @@
-import * as React from 'react';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
@@ -11,19 +10,21 @@ import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/authSlice';
 import API_URLS from '../../constants/apis/urls';
 import axiosInstance from '../../services/axiosInterceptor';
 import { RootState } from '../../store';
+import { useEffect, useState } from 'react';
 
 const pages = ["Dashboard", 'Friends', 'Groups'];
 
 function ResponsiveAppBar() {
-  const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
-  const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null);
-  const [active, setActive] = React.useState("Dashboard");
+  const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
+  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
+  const [active, setActive] = useState("Dashboard");
+  const location = useLocation();
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
 
@@ -49,6 +50,14 @@ function ResponsiveAppBar() {
     }
     dispatch(logout());
   }
+
+  useEffect(() => {
+    const path = location.pathname.split('/')[1]; // e.g., 'dashboard', 'friends'
+    const capitalized = path.charAt(0).toUpperCase() + path.slice(1);
+    if (pages.includes(capitalized)) {
+      setActive(capitalized);
+    }
+  }, [location.pathname]);
 
   return (
     <>

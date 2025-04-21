@@ -92,7 +92,7 @@ const GroupsPage = () => {
     return () => {
       removeNewMessageListener();
     };
-  }, [onNewGroupMessage, removeNewMessageListener]);
+  }, [selectedGroup?.group_id, onNewGroupMessage, removeNewMessageListener]);
 
   useEffect(() => {
     setGroupList(groups);
