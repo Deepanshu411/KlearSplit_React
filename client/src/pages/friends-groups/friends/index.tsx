@@ -37,16 +37,13 @@ const FriendsPage = () => {
       | CombinedGroupSettlement
     )[]
   >([]);
-  const [message, setMessage] = useState("");
 
   const {
-    onNewConversationMessage,
-    removeNewMessageListener,
     sendConversationMessage,
     leaveRoom,
   } = useSocket();
 
-  const onSendFriendMessage = async (message: string) => {
+  const onSendFriendMessage = (message: string) => {
     const messageData = {
       conversation_id: selectedFriend?.conversation_id,
       sender_id: user?.user_id,
@@ -55,30 +52,24 @@ const FriendsPage = () => {
     sendConversationMessage(messageData);
   };
 
-  const handleSendMessage = () => {
-    if (message.trim() === "") return; // Prevent sending empty message
-    onSendFriendMessage(message);
-    setMessage("");
-  };
+  // useEffect(() => {
+  //   const handleNewMessage = (message: MessageData) => {
+  //     const messageWithTime = {
+  //       ...message,
+  //       createdAt: new Date().toISOString(),
+  //     };
+  //     setMessages && setMessages((prevMessages) => [...prevMessages, messageWithTime]);
+  //     setCombinedView((prev) => [...prev, { ...messageWithTime, type: "message" }]);
+  //   };
 
-  useEffect(() => {
-    const handleNewMessage = (message: MessageData) => {
-      const messageWithTime = {
-        ...message,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages && setMessages((prevMessages) => [...prevMessages, messageWithTime]);
-      setCombinedView((prev) => [...prev, { ...messageWithTime, type: "message" }]);
-    };
+  //   // Listen for new conversation messages
+  //   onNewConversationMessage(handleNewMessage);
 
-    // Listen for new conversation messages
-    onNewConversationMessage(handleNewMessage);
-
-    // Cleanup the listener when the component unmounts or when switching rooms
-    return () => {
-      removeNewMessageListener();
-    };
-  }, [onNewConversationMessage, removeNewMessageListener]);
+  //   // Cleanup the listener when the component unmounts or when switching rooms
+  //   return () => {
+  //     removeNewMessageListener();
+  //   };
+  // }, [onNewConversationMessage, removeNewMessageListener]);
 
   useEffect(() => {
     setFriendsList(friends);
@@ -215,9 +206,7 @@ const FriendsPage = () => {
           <hr className="border-t-4 border-gray-400" />
           <MessageInput
             chat={selectedFriend}
-            handleSendMessage={handleSendMessage}
-            message={message}
-            setMessage={setMessage}
+            onSend={onSendFriendMessage}
             setChats={(chats) => setFriends(chats as FriendData[])}
             blockStatus={blockStatus}
             setExpenses={setExpenses}

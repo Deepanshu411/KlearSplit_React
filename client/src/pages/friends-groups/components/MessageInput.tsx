@@ -1,10 +1,5 @@
 import { AddCircleOutlineRounded, Send } from "@mui/icons-material";
-import {
-  Button,
-  TextField,
-  Tooltip,
-  IconButton,
-} from "@mui/material";
+import { Button, TextField, Tooltip, IconButton } from "@mui/material";
 import React, { useState } from "react";
 import AddExpense from "./AddExpense";
 
@@ -12,9 +7,7 @@ interface MessageInputProps {
   chat: FriendData | GroupData;
   blockStatus?: "BLOCK" | "UNBLOCK";
   blockStatusGroups?: boolean;
-  setChats: React.Dispatch<
-    React.SetStateAction<FriendData[] | GroupData[]>
-  >;
+  setChats: React.Dispatch<React.SetStateAction<FriendData[] | GroupData[]>>;
   //   setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
   setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
   setGroupExpenses?: React.Dispatch<
@@ -33,9 +26,7 @@ interface MessageInputProps {
   >;
   chatMembers?: GroupMemberData[];
   currentMember?: GroupMemberData;
-  message: string;
-  setMessage: React.Dispatch<React.SetStateAction<string>>;
-  handleSendMessage: () => void;
+  onSend: (message: string) => void;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
@@ -47,11 +38,17 @@ const MessageInput: React.FC<MessageInputProps> = ({
   setCombinedView,
   chatMembers,
   currentMember,
-  message,
-  setMessage,
-  handleSendMessage,
+  onSend,
 }) => {
   const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const handleSendMessage = () => {
+    if (message.trim() === "") return; // Prevent sending empty message
+    onSend(message);
+    setMessage("");
+  };
+
 
   const handleAddExpensesClose = () => setAddExpenseDialogOpen(false);
   const handleAddExpensesOpen = () => setAddExpenseDialogOpen(true);
@@ -97,7 +94,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
           maxRows={2}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault(); // prevents newline on Enter
+              handleSendMessage();
+            }
+          }}
           disabled={blockStatus === "UNBLOCK" || blockStatusGroups}
           sx={
             blockStatus === "UNBLOCK" || blockStatusGroups

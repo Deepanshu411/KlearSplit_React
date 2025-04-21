@@ -29,6 +29,7 @@ import {
   isCombinedGroupExpense,
 } from "../utils/getCombinedItemType";
 import BulkInsert from "../friends/BulkInsert";
+import isUserPayer from "../utils/getGroupPayer";
 
 const VisuallyHiddenInput = styled("input")`
   clip: rect(0 0 0 0);
@@ -73,11 +74,6 @@ interface AddExpenseProps {
   friendExpenseToUpdate?: ExpenseData;
   groupExpenseToUpdate?: GroupExpenseData | GroupSettlementData;
 }
-
-const isUserPayer = (chat: FriendData | null): boolean => {
-  if (!chat) return false;
-  return parseFloat(chat.balance_amount) < 0;
-};
 
 const AddExpense: React.FC<AddExpenseProps> = ({
   title,
@@ -610,7 +606,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({
               ...prev,
               { ...newExpense, type: "expense" },
             ]);
-            const updatedBalanceAmount = isUserPayer(chat)
+            const updatedBalanceAmount = isUserPayer(user?.user_id!, newExpense.payer_id)
               ? (
                   parseFloat(chat.balance_amount) +
                   parseFloat(newExpense.debtor_amount)

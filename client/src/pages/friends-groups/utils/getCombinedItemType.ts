@@ -23,6 +23,10 @@ export const isCombinedGroupSettlement = (
   return (item as CombinedGroupSettlement).group_settlement_id !== undefined;
 };
 
+export const isCombinedGroupMessage = (item: CombinedViewType): item is CombinedGroupMessage => {
+  return (item as CombinedGroupMessage).group_message_id !== undefined;
+};
+
 export const isCombinedMessage = (item: CombinedViewType): item is CombinedMessage => {
   return (item as CombinedMessage).message_id !== undefined;
 };

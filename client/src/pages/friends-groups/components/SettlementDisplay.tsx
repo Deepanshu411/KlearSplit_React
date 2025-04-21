@@ -20,6 +20,7 @@ interface SettlementDisplayProps {
   debtorName: string;
   debtorImageUrl: string;
   currentUserImageUrl: string;
+  showAvatar: boolean;
 }
 
 const SettlementDisplay: React.FC<SettlementDisplayProps> = ({
@@ -29,6 +30,7 @@ const SettlementDisplay: React.FC<SettlementDisplayProps> = ({
   payerImageUrl,
   debtorName,
   currentUserImageUrl,
+  showAvatar,
 }) => {
   const isCurrentUserPayer = settlement.payerId === currentUserId;
   const isCurrentUserDebtor = settlement.debtorId === currentUserId;
@@ -53,15 +55,14 @@ const SettlementDisplay: React.FC<SettlementDisplayProps> = ({
         <Avatar
           src={payerImageUrl || "/profile.png"}
           alt="payer avatar"
-          className="self-end me-3 shadow-md"
+          className={`rounded-full inline-flex self-end ml-3 shadow-md transition-opacity duration-200 ${
+            showAvatar ? "opacity-100" : "opacity-0"
+          }`}
           sx={{ width: 40, height: 40 }}
         />
       )}
 
-      <div
-        className="flex flex-col items-start backdrop-blur-md max-w-[48vw] md:max-w-[34vw] lg:max-w-[28vw] rounded-2xl p-4 border-2 border-white/5 text-sm text-black bg-black/10 shadow-lg"
-        
-      >
+      <div className="flex flex-col items-start backdrop-blur-md max-w-[48vw] md:max-w-[34vw] lg:max-w-[28vw] rounded-2xl p-4 border-2 border-white/5 text-sm text-black bg-black/10 shadow-lg">
         <div className="flex justify-between w-full mb-2">
           <div>
             <p className="mb-0 text-black">
@@ -87,7 +88,9 @@ const SettlementDisplay: React.FC<SettlementDisplayProps> = ({
         <Avatar
           src={currentUserImageUrl || "/profile.png"}
           alt="your avatar"
-          className="self-end ms-3 shadow-md"
+          className={`rounded-full inline-flex self-end ml-3 shadow-md transition-opacity duration-200 ${
+            showAvatar ? "opacity-100" : "opacity-0"
+          }`}
           sx={{ width: 40, height: 40 }}
         />
       )}

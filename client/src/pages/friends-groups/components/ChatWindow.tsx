@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { fetchMessagesAndExpenses } from "../friends/services";
 import ExpenseItem from "./Expense";
 import { useSelector } from "react-redux";
@@ -17,7 +17,14 @@ import isUserPayer from "../utils/getGroupPayer";
 import SettlementDisplay from "./SettlementDisplay";
 import enrichWithPayerDebtor from "../utils/getPayerDebtorData";
 import { useSocket } from "../hooks/useSocket";
-import { CombinedViewType, isCombinedExpense, isCombinedGroupExpense, isCombinedGroupSettlement, isCombinedMessage } from "../utils/getCombinedItemType";
+import {
+  CombinedViewType,
+  isCombinedExpense,
+  isCombinedGroupExpense,
+  isCombinedGroupMessage,
+  isCombinedGroupSettlement,
+  isCombinedMessage,
+} from "../utils/getCombinedItemType";
 
 interface ChatWindowProp {
   currentView: "All" | "Expenses" | "Messages";
@@ -87,7 +94,53 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   const prevGroupsMessages = useRef(groupMessages ?? []);
   const prevGroupsExpenses = useRef(groupExpenses ?? []);
   const prevCombined = useRef(combinedView ?? []);
-  const { leaveRoom } = useSocket();
+  const {
+    onNewConversationMessage,
+    onNewGroupMessage,
+    removeNewMessageListener,
+    leaveRoom,
+  } = useSocket();
+
+  useEffect(() => {
+    const isFriend = isFriendsConversation(chat!);
+    const messageHandler = (message: MessageData | GroupMessageData) => {
+      const messageWithTime = {
+        ...message,
+        createdAt: new Date().toISOString(),
+      };
+
+      if (isFriend) {
+        setMessages && setMessages((prev) => [...prev, messageWithTime as MessageData]);
+      } else {
+        setGroupMessages && setGroupMessages((prev) => [
+          ...prev,
+          messageWithTime as GroupMessageData,
+        ]);
+      }
+
+      setCombinedView((prev) => [
+        ...prev,
+        { ...messageWithTime, type: "message" },
+      ]);
+    };
+
+    if (isFriend) {
+      onNewConversationMessage(messageHandler as (m: MessageData) => void);
+    } else {
+      onNewGroupMessage(messageHandler as (m: GroupMessageData) => void);
+    }
+
+    return () => {
+      removeNewMessageListener();
+    };
+  }, [
+    messages,
+    groupMessages,
+    combinedView,
+    onNewConversationMessage,
+    onNewGroupMessage,
+    removeNewMessageListener,
+  ]); // more stable than function deps
 
   let content;
 
@@ -255,7 +308,13 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
               payer: enrichWithPayerDebtor(groupMembers!, combined.payer_id),
               debtor: enrichWithPayerDebtor(groupMembers!, combined.debtor_id),
             };
+          } else if (isCombinedGroupMessage(combined)) {
+            return {
+              ...combined,
+              sender: enrichWithPayerDebtor(groupMembers!, combined.sender_id),
+            };
           }
+          return combined;
         });
 
         // 🔹 Prepend old messages for infinite scrolling
@@ -342,77 +401,42 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
     return () => observer.current?.disconnect();
   }, [timestampCombined, timestampExpenses, timestampMessages, currentView]);
 
-  useEffect(() => {
-    // Ensure messages, expenses, or combinedView have loaded
-    if (firstLoad.current || prevView.current !== currentView) {
-      if (
-        (messages && messages.length > 0) ||
+  useLayoutEffect(() => {
+    // Trigger only on first load or view change with loaded data
+    if (
+      (firstLoad.current || prevView.current !== currentView) &&
+      ((messages && messages.length > 0) ||
         (expenses && expenses.length > 0) ||
         (groupMessages && groupMessages.length > 0) ||
         (groupExpenses && groupExpenses.length > 0) ||
-        combinedView.length > 0
-      ) {
-        scrollToBottom();
-        firstLoad.current = false;
-        prevView.current = currentView; // update prevView after data loads
-      }
+        combinedView.length > 0)
+    ) {
+      scrollToBottom();
+      firstLoad.current = false;
+      prevView.current = currentView;
     }
-  }, [currentView]);
+  }, [currentView, messages, expenses, groupMessages, groupExpenses, combinedView]);
 
   useEffect(() => {
-    // Check for new messages
-    if (
-      messages &&
-      messages[0] &&
-      prevFriendsMessages.current[0] &&
-      messages[0].createdAt > prevFriendsMessages.current[0].createdAt
-    ) {
-      prevFriendsMessages.current = messages;
-      scrollToBottom();
-    }
-    if (
-      expenses &&
-      expenses[0] &&
-      prevFriendsExpenses.current[0] &&
-      expenses[0].createdAt > prevFriendsExpenses.current[0].createdAt
-    ) {
-      prevFriendsExpenses.current = expenses;
-      scrollToBottom();
-    }
-    if (
-      groupMessages &&
-      groupMessages[0] &&
-      prevGroupsMessages.current[0] &&
-      groupMessages[0].createdAt > prevGroupsMessages.current[0].createdAt
-    ) {
-      prevGroupsMessages.current = groupMessages;
-      scrollToBottom();
-    }
-    if (
-      groupExpenses &&
-      groupExpenses[0] &&
-      prevGroupsExpenses.current[0] &&
-      groupExpenses[0].createdAt > prevGroupsExpenses.current[0].createdAt
-    ) {
-      prevGroupsExpenses.current = groupExpenses;
-      scrollToBottom();
-    }
-    if (
-      combinedView[0] &&
-      prevCombined.current[0] &&
-      combinedView[0].createdAt > prevCombined.current[0].createdAt
-    ) {
-      prevCombined.current = combinedView;
-      scrollToBottom();
-    }
-  }, [
-    messages,
-    expenses,
-    groupMessages,
-    groupExpenses,
-    combinedView,
-    scrollToBottom,
-  ]);
+    const checkAndScroll = (newItems: any[], prevRef: any) => {
+      if (
+        newItems &&
+        newItems[0] &&
+        prevRef.current[0] &&
+        newItems[0].createdAt > prevRef.current[0].createdAt
+      ) {
+        prevRef.current = newItems;
+        scrollToBottom();
+      }
+    };
+  
+    checkAndScroll(messages ?? [], prevFriendsMessages);
+    checkAndScroll(expenses ?? [], prevFriendsExpenses);
+    checkAndScroll(groupMessages ?? [], prevGroupsMessages);
+    checkAndScroll(groupExpenses ?? [], prevGroupsExpenses);
+    checkAndScroll(combinedView, prevCombined);
+  }, [messages, expenses, groupMessages, groupExpenses, combinedView]);
+  
 
   switch (currentView) {
     case "All":
@@ -420,6 +444,12 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
         <div className="space-y-2">
           {combinedView.map((item, index) => {
             if (isCombinedMessage(item)) {
+              const isCurrentUser = item.sender_id === user?.user_id;
+              const nextMessage = combinedView[index + 1];
+              const nextIsSameUser =
+                nextMessage && isCombinedMessage(nextMessage)
+                  ? nextMessage?.sender_id === item.sender_id
+                  : false;
               return (
                 <MessageItem
                   key={index}
@@ -428,35 +458,22 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                   }}
-                  isCurrentUser={
-                    isFriendsConversation(chat!)
-                      ? item.sender_id === user?.user_id
-                      : item.sender_id === currentMember?.group_membership_id
-                  }
-                  currentUserImageUrl={
-                    user?.image_url ||
-                    "/profile.png"
-                  }
+                  isCurrentUser={isCurrentUser}
+                  currentUserImageUrl={user?.image_url || "/profile.png"}
                   imageUrl={
-                    isFriendsConversation(chat!)
-                      ? chat?.friend.image_url
-                      : groupMembers?.find(
-                          (member) =>
-                            member.group_membership_id === item.sender_id
-                        )?.image_url ||
-                        "/profile.png"
+                    (chat as FriendData).friend.image_url || "/profile.png"
                   }
-                  name={
-                    isFriendsConversation(chat!)
-                      ? chat?.friend.first_name!
-                      : groupMembers?.find(
-                          (member) =>
-                            member.group_membership_id === item.sender_id
-                        )?.first_name!
-                  }
+                  name={(chat as FriendData).friend.first_name!}
+                  showAvatar={!nextIsSameUser} // Show avatar only if the next message is from a different user
                 />
               );
             } else if (isCombinedExpense(item)) {
+              const isCurrentUser = isUserPayer(user?.user_id!, item.payer_id);
+              const nextExpense = combinedView[index + 1];
+              const nextIsSameUser =
+                nextExpense && isCombinedExpense(nextExpense)
+                  ? nextExpense.payer_id === item.payer_id
+                  : false;
               return (
                 <ExpenseItem
                   key={index}
@@ -469,25 +486,64 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                   }}
-                  isCurrentUserPayer={isUserPayer(user?.user_id!, item.payer_id)}
-                  currentUserImageUrl={
-                    user?.image_url ||
-                    "/profile.png"
-                  }
+                  isCurrentUserPayer={isCurrentUser}
+                  currentUserImageUrl={user?.image_url || "/profile.png"}
                   imageUrl={
                     isFriendsConversation(chat!)
                       ? chat?.friend.image_url
-                      : chat?.image_url ||
-                        "/profile.png"
+                      : chat?.image_url || "/profile.png"
                   }
                   name={
                     isFriendsConversation(chat!)
                       ? chat?.friend.first_name!
                       : chat?.group_name!
                   }
+                  showAvatar={!nextIsSameUser}
+                />
+              );
+            } else if (isCombinedGroupMessage(item)) {
+              const isCurrentUser =
+                item.sender_id === currentMember?.group_membership_id;
+              const nextMessage = combinedView[index + 1];
+              const nextIsSameUser =
+                nextMessage && isCombinedGroupMessage(nextMessage)
+                  ? nextMessage?.sender_id === item.sender_id
+                  : false;
+              return (
+                <MessageItem
+                  key={index}
+                  message={{
+                    message: item.message,
+                    createdAt: item.createdAt,
+                    updatedAt: item.updatedAt,
+                  }}
+                  isCurrentUser={isCurrentUser}
+                  currentUserImageUrl={
+                    currentMember?.image_url || "/profile.png"
+                  }
+                  imageUrl={
+                    groupMembers?.find(
+                      (member) => member.group_membership_id === item.sender_id
+                    )?.image_url || "/profile.png"
+                  }
+                  name={
+                    groupMembers?.find(
+                      (member) => member.group_membership_id === item.sender_id
+                    )?.first_name!
+                  }
+                  showAvatar={!nextIsSameUser} // Show avatar only if the next message is from a different user
                 />
               );
             } else if (isCombinedGroupExpense(item)) {
+              const isCurrentUser = isUserPayer(
+                currentMember?.group_membership_id!,
+                item.payer_id
+              );
+              const nextExpense = combinedView[index + 1];
+              const nextIsSameUser =
+                nextExpense && isCombinedGroupExpense(nextExpense)
+                  ? nextExpense.payer_id === item.payer_id
+                  : false;
               return (
                 <ExpenseItem
                   key={index}
@@ -496,27 +552,25 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     expense_name: item.expense_name,
                     payer_id: item.payer_id,
                     total_amount: item.total_amount,
-                    debtor_amount: isUserPayer(currentMember?.group_membership_id!, item.payer_id)
+                    debtor_amount: isCurrentUser
                       ? item.total_debt_amount
                       : item.user_debt,
                     createdAt: item.createdAt,
                     updatedAt: item.updatedAt,
                   }}
-                  isCurrentUserPayer={
-                    isUserPayer(currentMember?.group_membership_id!, item.payer_id)
-                  }
-                  currentUserImageUrl={
-                    user?.image_url ||
-                    "/profile.png"
-                  }
-                  imageUrl={
-                    item.payer.imageUrl ||
-                    "/profile.png"
-                  }
+                  isCurrentUserPayer={isCurrentUser}
+                  currentUserImageUrl={user?.image_url || "/profile.png"}
+                  imageUrl={item.payer.imageUrl || "/profile.png"}
                   name={item.payer.fullName || "Unknown Payer"}
+                  showAvatar={!nextIsSameUser}
                 />
               );
             } else if (isCombinedGroupSettlement(item)) {
+              const nextExpense = combinedView[index + 1];
+              const nextIsSameUser =
+                nextExpense && isCombinedGroupSettlement(nextExpense)
+                  ? nextExpense.payer_id === item.payer_id
+                  : false;
               return (
                 <SettlementDisplay
                   key={index}
@@ -530,20 +584,12 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                     updatedAt: item.updatedAt,
                   }}
                   currentUserId={currentMember?.group_membership_id!}
-                  currentUserImageUrl={
-                    user?.image_url ||
-                    "/profile.png"
-                  }
+                  currentUserImageUrl={user?.image_url || "/profile.png"}
                   payerName={item.payer.fullName || "Unknown Payer"}
-                  payerImageUrl={
-                    item.payer.imageUrl ||
-                    "/profile.png"
-                  }
+                  payerImageUrl={item.payer.imageUrl || "/profile.png"}
                   debtorName={item.debtor.fullName || "Unknown Debtor"}
-                  debtorImageUrl={
-                    item.debtor.imageUrl ||
-                    "/profile.png"
-                  }
+                  debtorImageUrl={item.debtor.imageUrl || "/profile.png"}
+                  showAvatar={!nextIsSameUser}
                 />
               );
             }
@@ -555,30 +601,36 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
       if (isFriendsConversation(chat!)) {
         content = (
           <div className="space-y-2">
-            {expenses!.map((expense, index) => (
-              <ExpenseItem
-                key={index}
-                expense={{
-                  expense_id: expense.friend_expense_id,
-                  expense_name: expense.expense_name,
-                  payer_id: expense.payer_id,
-                  total_amount: expense.total_amount,
-                  debtor_amount: expense.debtor_amount,
-                  createdAt: expense.createdAt,
-                  updatedAt: expense.updatedAt,
-                }}
-                isCurrentUserPayer={isUserPayer(user?.user_id!, expense.payer_id)}
-                currentUserImageUrl={
-                  user?.image_url ||
-                  "/profile.png"
-                }
-                imageUrl={
-                  chat?.friend.image_url ||
-                  "/profile.png"
-                }
-                name={chat?.friend.first_name!}
-              />
-            ))}
+            {expenses!.map((expense, index) => {
+              const isCurrentUser = isUserPayer(
+                user?.user_id!,
+                expense.payer_id
+              );
+              const nextExpense = combinedView[index + 1];
+              const nextIsSameUser =
+                nextExpense && isCombinedExpense(nextExpense)
+                  ? nextExpense.payer_id === expense.payer_id
+                  : false;
+              return (
+                <ExpenseItem
+                  key={index}
+                  expense={{
+                    expense_id: expense.friend_expense_id,
+                    expense_name: expense.expense_name,
+                    payer_id: expense.payer_id,
+                    total_amount: expense.total_amount,
+                    debtor_amount: expense.debtor_amount,
+                    createdAt: expense.createdAt,
+                    updatedAt: expense.updatedAt,
+                  }}
+                  isCurrentUserPayer={isCurrentUser}
+                  currentUserImageUrl={user?.image_url || "/profile.png"}
+                  imageUrl={chat?.friend.image_url || "/profile.png"}
+                  name={chat?.friend.first_name!}
+                  showAvatar={!nextIsSameUser}
+                />
+              );
+            })}
           </div>
         );
       } else {
@@ -586,6 +638,15 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
           <div className="space-y-2">
             {groupExpenses!.map((expense, index) => {
               if (isGroupExpense(expense)) {
+                const isCurrentUser = isUserPayer(
+                  currentMember?.group_membership_id!,
+                  expense.payer_id
+                );
+                const nextExpense = combinedView[index + 1];
+                const nextIsSameUser =
+                  nextExpense && isCombinedGroupExpense(nextExpense)
+                    ? nextExpense.payer_id === expense.payer_id
+                    : false;
                 return (
                   <ExpenseItem
                     key={index}
@@ -594,30 +655,25 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                       expense_name: expense.expense_name,
                       payer_id: expense.payer_id,
                       total_amount: expense.total_amount,
-                      debtor_amount: isUserPayer(
-                        currentMember?.group_membership_id!,
-                        expense.payer_id
-                      )
+                      debtor_amount: isCurrentUser
                         ? expense.total_debt_amount
                         : expense.user_debt,
                       createdAt: expense.createdAt,
                       updatedAt: expense.updatedAt,
                     }}
-                    isCurrentUserPayer={
-                      isUserPayer(currentMember?.group_membership_id!, expense.payer_id)
-                    }
-                    currentUserImageUrl={
-                      user?.image_url ||
-                      "/profile.png"
-                    }
-                    imageUrl={
-                      expense.payer.imageUrl ||
-                      "/profile.png"
-                    }
+                    isCurrentUserPayer={isCurrentUser}
+                    currentUserImageUrl={user?.image_url || "/profile.png"}
+                    imageUrl={expense.payer.imageUrl || "/profile.png"}
                     name={expense.payer.fullName || "Unknown Payer"}
+                    showAvatar={!nextIsSameUser}
                   />
                 );
               } else {
+                const nextExpense = combinedView[index + 1];
+                const nextIsSameUser =
+                  nextExpense && isCombinedGroupSettlement(nextExpense)
+                    ? nextExpense.payer_id === expense.payer_id
+                    : false;
                 return (
                   <SettlementDisplay
                     key={index}
@@ -631,20 +687,12 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                       updatedAt: expense.updatedAt,
                     }}
                     currentUserId={currentMember?.group_membership_id!}
-                    currentUserImageUrl={
-                      user?.image_url ||
-                      "/profile.png"
-                    }
+                    currentUserImageUrl={user?.image_url || "/profile.png"}
                     payerName={expense.payer.fullName || "Unknown Payer"}
-                    payerImageUrl={
-                      expense.payer.imageUrl ||
-                      "/profile.png"
-                    }
+                    payerImageUrl={expense.payer.imageUrl || "/profile.png"}
                     debtorName={expense.debtor.fullName || "Unknown Debtor"}
-                    debtorImageUrl={
-                      expense.debtor.imageUrl ||
-                      "/profile.png"
-                    }
+                    debtorImageUrl={expense.debtor.imageUrl || "/profile.png"}
+                    showAvatar={!nextIsSameUser}
                   />
                 );
               }
@@ -658,6 +706,10 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
         ? (content = (
             <div className="space-y-2">
               {messages!.map((message, index) => {
+                const isCurrentUser = message.sender_id === user?.user_id;
+                const nextMessage = messages![index + 1];
+                const nextIsSameUser =
+                  nextMessage?.sender_id === message.sender_id;
                 return (
                   <MessageItem
                     key={index}
@@ -666,16 +718,11 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                       createdAt: message.createdAt,
                       updatedAt: message.updatedAt,
                     }}
-                    isCurrentUser={message.sender_id === user?.user_id}
-                    currentUserImageUrl={
-                      user?.image_url ||
-                      "/profile.png"
-                    }
-                    imageUrl={
-                      chat?.friend.image_url ||
-                      "/profile.png"
-                    }
+                    isCurrentUser={isCurrentUser}
+                    currentUserImageUrl={user?.image_url || "/profile.png"}
+                    imageUrl={chat?.friend.image_url || "/profile.png"}
                     name={chat?.friend.first_name!}
+                    showAvatar={!nextIsSameUser} // Show avatar only if the next message is from a different user
                   />
                 );
               })}
@@ -684,6 +731,11 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
         : (content = (
             <div className="space-y-2">
               {groupMessages!.map((message, index) => {
+                const isCurrentUser =
+                  message.sender_id === currentMember?.group_membership_id;
+                const nextMessage = groupMessages![index + 1];
+                const nextIsSameUser =
+                  nextMessage?.sender_id === message.sender_id;
                 return (
                   <MessageItem
                     key={index}
@@ -692,17 +744,15 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                       createdAt: message.createdAt,
                       updatedAt: message.updatedAt,
                     }}
-                    isCurrentUser={message.sender_id === user?.user_id}
+                    isCurrentUser={isCurrentUser}
                     currentUserImageUrl={
-                      user?.image_url ||
-                      "/profile.png"
+                      currentMember?.image_url || "/profile.png"
                     }
                     imageUrl={
                       groupMembers?.find(
                         (member) =>
                           member.group_membership_id === message.sender_id
-                      )?.image_url ||
-                      "/profile.png"
+                      )?.image_url || "/profile.png"
                     }
                     name={
                       groupMembers?.find(
@@ -710,6 +760,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
                           member.group_membership_id === message.sender_id
                       )?.first_name!
                     }
+                    showAvatar={!nextIsSameUser} // Show avatar only if the next message is from a different user
                   />
                 );
               })}

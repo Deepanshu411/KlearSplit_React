@@ -14,6 +14,7 @@ import {
 import Button from "@mui/joy/Button";
 import { motion } from "framer-motion";
 import isFriendsConversation from "../utils/getConversationType";
+import React from "react";
 
 interface PayerProps {
   open: boolean;
@@ -89,13 +90,11 @@ const Payer: React.FC<PayerProps> = ({
           <Box className="rounded bg-[white] flex flex-col">
             {isFriendsConversation(chat)
               ? participants &&
-                participants.map((participant) => {
-                  return (
-                    <>
+                participants.map((participant) => (
+                    <React.Fragment key={participant.user_id}>
                       <ListItem
                         disablePadding
                         alignItems="flex-start"
-                        key={participant.user_id}
                         onClick={() => handleSetPayer(participant)}
                         className="cursor-pointer"
                         sx={{
@@ -146,17 +145,14 @@ const Payer: React.FC<PayerProps> = ({
                         </ListItemButton>
                       </ListItem>
                       <Divider />
-                    </>
-                  );
-                })
+                    </React.Fragment>
+                  ))
               : groupParticipants &&
-                groupParticipants.map((participant) => {
-                  return (
-                    <>
+                groupParticipants.map((participant) => (
+                    <React.Fragment key={participant.group_membership_id}>
                       <ListItem
                         disablePadding
                         alignItems="flex-start"
-                        key={participant.group_membership_id}
                         onClick={() => handleSetGroupPayer(participant)}
                         className="cursor-pointer"
                         sx={{
@@ -195,9 +191,8 @@ const Payer: React.FC<PayerProps> = ({
                         </ListItemButton>
                       </ListItem>
                       <Divider />
-                    </>
-                  );
-                })}
+                    </React.Fragment>
+                  ))}
             <Box className="flex justify-end items-center p-3">
               <Button onClick={handlePayerDialogClose}>Cancel</Button>
             </Box>

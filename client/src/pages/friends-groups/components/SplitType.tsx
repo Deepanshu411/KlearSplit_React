@@ -16,7 +16,7 @@ import {
 } from "@mui/material";
 import Button from "@mui/joy/Button";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import isFriendsConversation from "../utils/getConversationType";
 
 interface SplitTypeProps {
@@ -340,11 +340,10 @@ const SplitType: React.FC<SplitTypeProps> = ({
             {isFriendsConversation(chat)
               ? participants &&
                 participants.map((participant) => (
-                  <>
+                  <React.Fragment key={participant.user_id}>
                     <ListItem
                       disablePadding
                       alignItems="flex-start"
-                      key={participant.user_id}
                     >
                       <ListItemButton sx={{ paddingX: 1 }}>
                         <ListItemAvatar sx={{ minWidth: 32, paddingRight: 1 }}>
@@ -397,14 +396,13 @@ const SplitType: React.FC<SplitTypeProps> = ({
                       </ListItemButton>
                     </ListItem>
                     <Divider />
-                  </>
+                  </React.Fragment>
                 ))
               : localGroupParticipants.map((participant) => (
-                  <>
+                  <React.Fragment key={participant.group_membership_id}>
                     <ListItem
                       disablePadding
                       alignItems="flex-start"
-                      key={participant.group_membership_id}
                     >
                       <ListItemButton sx={{ paddingX: 1 }}>
                         <ListItemAvatar sx={{ minWidth: 32, paddingRight: 1 }}>
@@ -460,7 +458,7 @@ const SplitType: React.FC<SplitTypeProps> = ({
                       </ListItemButton>
                     </ListItem>
                     <Divider />
-                  </>
+                  </React.Fragment>
                 ))}
             {splitType !== "EQUAL" && (
               <Typography align="center" className="p-3">
