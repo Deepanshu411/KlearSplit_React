@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+} from "react";
 import { fetchMessagesAndExpenses } from "../friends/services";
 import ExpenseItem from "./Expense";
 import { useSelector } from "react-redux";
@@ -16,7 +22,6 @@ import {
 import isUserPayer from "../utils/getGroupPayer";
 import SettlementDisplay from "./SettlementDisplay";
 import enrichWithPayerDebtor from "../utils/getPayerDebtorData";
-import { useSocket } from "../hooks/useSocket";
 import {
   CombinedViewType,
   isCombinedExpense,
@@ -82,8 +87,7 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   const messagesStartRef = useRef<HTMLDivElement | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
   const { messageContainerRef, scrollToBottom } = useScrollToBottom();
-  const previousScrollHeight = useRef(0);
-  const previousScrollTop = useRef(0);
+  const scrollPosition = useRef(0);
   const firstLoad = useRef(true);
   const prevView = useRef<"All" | "Expenses" | "Messages" | null>(null);
   const isFetching = useRef(false);
@@ -94,60 +98,46 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   const prevGroupsMessages = useRef(groupMessages ?? []);
   const prevGroupsExpenses = useRef(groupExpenses ?? []);
   const prevCombined = useRef(combinedView ?? []);
-  const {
-    onNewConversationMessage,
-    onNewGroupMessage,
-    removeNewMessageListener,
-    leaveRoom,
-  } = useSocket();
 
-  useEffect(() => {
-    const isFriend = isFriendsConversation(chat!);
-    const messageHandler = (message: MessageData | GroupMessageData) => {
-      const messageWithTime = {
-        ...message,
-        createdAt: new Date().toISOString(),
-      };
+  //   useEffect(() => {
+  //     const isFriend = isFriendsConversation(chat!);
+  //     const messageHandler = (message: MessageData | GroupMessageData) => {
+  //       const messageWithTime = {
+  //         ...message,
+  //         createdAt: new Date().toISOString(),
+  //       };
 
-      if (isFriend) {
-        setMessages && setMessages((prev) => [...prev, messageWithTime as MessageData]);
-      } else {
-        setGroupMessages && setGroupMessages((prev) => [
-          ...prev,
-          messageWithTime as GroupMessageData,
-        ]);
-      }
+  //       if (isFriend) {
+  //         setMessages && setMessages((prev) => [...prev, messageWithTime as MessageData]);
+  //       } else {
+  //         setGroupMessages && setGroupMessages((prev) => [
+  //           ...prev,
+  //           messageWithTime as GroupMessageData,
+  //         ]);
+  //       }
 
-      setCombinedView((prev) => [
-        ...prev,
-        { ...messageWithTime, type: "message" },
-      ]);
-    };
+  //       setCombinedView((prev) => [
+  //         ...prev,
+  //         { ...messageWithTime, type: "message" },
+  //       ]);
+  //     };
 
-    if (isFriend) {
-      onNewConversationMessage(messageHandler as (m: MessageData) => void);
-    } else {
-      onNewGroupMessage(messageHandler as (m: GroupMessageData) => void);
-    }
+  //     if (isFriend) {
+  //       onNewConversationMessage(messageHandler as (m: MessageData) => void);
+  //     } else {
+  //       onNewGroupMessage(messageHandler as (m: GroupMessageData) => void);
+  //     }
 
-    return () => {
-      removeNewMessageListener();
-    };
-  }, [
-    messages,
-    groupMessages,
-    combinedView,
-    onNewConversationMessage,
-    onNewGroupMessage,
-    removeNewMessageListener,
-  ]); // more stable than function deps
+  //     return () => {
+  //       console.log("ran")
+  //       removeNewMessageListener();
+  //     };
+  //   },
+  // [onNewConversationMessage]); // more stable than function deps
 
   let content;
 
   const clearSelectedChat = () => {
-    leaveRoom(
-      isFriendsConversation(chat!) ? chat.conversation_id : chat?.group_id!
-    );
     isResettingChat.current = true;
     setMessages && setMessages([]);
     setExpenses && setExpenses([]);
@@ -248,21 +238,14 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
           setTimestampCombined(() => newCombined[0].createdAt);
 
         // 🔹 Restore scroll position after the DOM updates
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           if (messageContainerRef.current) {
             const newScrollHeight = messageContainerRef.current.scrollHeight;
 
-            messageContainerRef.current.scrollTop =
-              newScrollHeight -
-              previousScrollHeight.current +
-              previousScrollTop.current;
-
-            // Update for the next turn
-            previousScrollHeight.current =
-              messageContainerRef.current.scrollHeight;
-            previousScrollTop.current = messageContainerRef.current.scrollTop;
+            const scrollDiff = newScrollHeight - scrollPosition.current;
+            messageContainerRef.current.scrollTop = scrollDiff - 100; 
           }
-        }, 0);
+        })
       } else {
         const response = await fetchMessagesExpensesAndSettlements(
           chat?.group_id!,
@@ -350,19 +333,14 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
           setTimestampCombined(() => newCombined[0].createdAt);
 
         // 🔹 Restore scroll position after the DOM updates
-        if (messageContainerRef.current) {
-          const newScrollHeight = messageContainerRef.current.scrollHeight;
+        requestAnimationFrame(() => {
+          if (messageContainerRef.current) {
+            const newScrollHeight = messageContainerRef.current.scrollHeight;
 
-          messageContainerRef.current.scrollTop =
-            newScrollHeight -
-            previousScrollHeight.current +
-            previousScrollTop.current;
-
-          // Update for the next turn
-          previousScrollHeight.current =
-            messageContainerRef.current.scrollHeight;
-          previousScrollTop.current = messageContainerRef.current.scrollTop;
-        }
+            const scrollDiff = newScrollHeight - scrollPosition.current;
+            messageContainerRef.current.scrollTop = scrollDiff - 100; 
+          }
+        });
       }
     } catch (error) {
       toast.error("Something went wrong! Please try again later.");
@@ -391,6 +369,8 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
       (entries) => {
         if (entries[0].isIntersecting && !loading && !isResettingChat.current) {
           fetchData(); // Load older messages when reaching top
+          scrollPosition.current =
+            messageContainerRef.current?.scrollHeight || 0;
         }
       },
       { root: null, threshold: 1.0 }
@@ -415,9 +395,16 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
       firstLoad.current = false;
       prevView.current = currentView;
     }
-  }, [currentView, messages, expenses, groupMessages, groupExpenses, combinedView]);
+  }, [
+    currentView,
+    messages,
+    expenses,
+    groupMessages,
+    groupExpenses,
+    combinedView,
+  ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const checkAndScroll = (newItems: any[], prevRef: any) => {
       if (
         newItems &&
@@ -429,14 +416,13 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
         scrollToBottom();
       }
     };
-  
+
     checkAndScroll(messages ?? [], prevFriendsMessages);
     checkAndScroll(expenses ?? [], prevFriendsExpenses);
     checkAndScroll(groupMessages ?? [], prevGroupsMessages);
     checkAndScroll(groupExpenses ?? [], prevGroupsExpenses);
     checkAndScroll(combinedView, prevCombined);
   }, [messages, expenses, groupMessages, groupExpenses, combinedView]);
-  
 
   switch (currentView) {
     case "All":

@@ -39,37 +39,63 @@ const FriendsPage = () => {
   >([]);
 
   const {
+    joinRoom,
     sendConversationMessage,
+    onNewConversationMessage,
+    removeNewMessageListener,
     leaveRoom,
   } = useSocket();
 
+  const handleSelectFriend = (friend: FriendData) => {
+    if (selectedFriend?.conversation_id === friend.conversation_id) {
+      setSelectedFriend(null);
+      setMessages([]);
+      setExpenses([]);
+      setCombinedView([]);
+      leaveRoom(friend.conversation_id);
+      return;
+    }
+    setSelectedFriend(friend)
+    joinRoom(friend.conversation_id);
+  }
+
   const onSendFriendMessage = (message: string) => {
     const messageData = {
-      conversation_id: selectedFriend?.conversation_id,
-      sender_id: user?.user_id,
+      conversation_id: selectedFriend?.conversation_id || "",
+      sender_id: user?.user_id || "",
       message,
     };
     sendConversationMessage(messageData);
   };
 
-  // useEffect(() => {
-  //   const handleNewMessage = (message: MessageData) => {
-  //     const messageWithTime = {
-  //       ...message,
-  //       createdAt: new Date().toISOString(),
-  //     };
-  //     setMessages && setMessages((prevMessages) => [...prevMessages, messageWithTime]);
-  //     setCombinedView((prev) => [...prev, { ...messageWithTime, type: "message" }]);
-  //   };
+  useEffect(() => {
+    if (!selectedFriend) return;
+    const handleNewMessage = (message: MessageData) => {
+      const messageWithTime = {
+        ...message,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages &&
+        setMessages((prevMessages) => [...prevMessages, messageWithTime]);
+      setCombinedView((prev) => [
+        ...prev,
+        { ...messageWithTime, type: "message" },
+      ]);
+    };
 
-  //   // Listen for new conversation messages
-  //   onNewConversationMessage(handleNewMessage);
+    // Listen for new conversation messages
+    removeNewMessageListener();
+    onNewConversationMessage(handleNewMessage);
 
-  //   // Cleanup the listener when the component unmounts or when switching rooms
-  //   return () => {
-  //     removeNewMessageListener();
-  //   };
-  // }, [onNewConversationMessage, removeNewMessageListener]);
+    // Cleanup the listener when the component unmounts or when switching rooms
+    return () => {
+      removeNewMessageListener();
+    };
+  }, [
+    selectedFriend?.conversation_id,
+    onNewConversationMessage,
+    removeNewMessageListener,
+  ]);
 
   useEffect(() => {
     setFriendsList(friends);
@@ -124,7 +150,6 @@ const FriendsPage = () => {
   };
 
   const clearSelectedFriend = () => {
-    leaveRoom(selectedFriend?.conversation_id!);
     setSelectedFriend(null);
     setMessages([]);
     setExpenses([]);
@@ -170,8 +195,8 @@ const FriendsPage = () => {
         />
         <ChatList
           chats={filteredFriends}
-          onSelectConversation={(friend) =>
-            setSelectedFriend(friend as FriendData)
+          handleSelectChat={(friend) =>
+            handleSelectFriend(friend as FriendData)
           }
         />
       </div>

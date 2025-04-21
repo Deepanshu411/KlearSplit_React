@@ -49,7 +49,10 @@ const GroupsPage = () => {
   >([]);
 
   const {
+    joinRoom,
     sendGroupMessage,
+    onNewGroupMessage,
+    removeNewMessageListener,
     leaveRoom,
   } = useSocket();
 
@@ -63,32 +66,33 @@ const GroupsPage = () => {
     await saveGroupMessages(message.trim(), selectedGroup?.group_id!);
   };
 
-  // useEffect(() => {
-  //   const handleNewGroupMessage = (message: GroupMessageData) => {
-  //     const sender = getFullNameAndImage(currentMember);
-  //     const messageWithSenderAndTime = {
-  //       ...message,
-  //       senderName: sender.fullName,
-  //       senderImage: sender.imageUrl,
-  //       createdAt: new Date().toISOString(),
-  //     };
-  //     setGroupMessages((prevMessages) => [
-  //       ...prevMessages,
-  //       messageWithSenderAndTime,
-  //     ]);
-  //     setCombinedView((prev) => [
-  //       ...prev,
-  //       { ...messageWithSenderAndTime, type: "message" },
-  //     ]);
-  //   };
+  useEffect(() => {
+    const handleNewGroupMessage = (message: GroupMessageData) => {
+      const sender = getFullNameAndImage(currentMember);
+      const messageWithSenderAndTime = {
+        ...message,
+        senderName: sender.fullName,
+        senderImage: sender.imageUrl,
+        createdAt: new Date().toISOString(),
+      };
+      setGroupMessages((prevMessages) => [
+        ...prevMessages,
+        messageWithSenderAndTime,
+      ]);
+      setCombinedView((prev) => [
+        ...prev,
+        { ...messageWithSenderAndTime, type: "message" },
+      ]);
+    };
 
-  //   onNewGroupMessage(handleNewGroupMessage);
+    removeNewMessageListener(); // Cleanup any existing listeners
+    onNewGroupMessage(handleNewGroupMessage);
 
-  //   // Cleanup the listener when the component unmounts or when switching rooms
-  //   return () => {
-  //     removeNewMessageListener();
-  //   };
-  // }, [onNewGroupMessage, removeNewMessageListener]);
+    // Cleanup the listener when the component unmounts or when switching rooms
+    return () => {
+      removeNewMessageListener();
+    };
+  }, [onNewGroupMessage, removeNewMessageListener]);
 
   useEffect(() => {
     setGroupList(groups);
@@ -135,7 +139,6 @@ const GroupsPage = () => {
   };
 
   const clearSelectedGroup = () => {
-    leaveRoom(selectedGroup?.group_id!);
     setSelectedGroup(null);
     setGroupMembers([]);
     setCurrentMember(undefined);
@@ -145,7 +148,10 @@ const GroupsPage = () => {
   };
 
   const handleSelectConversation = async (group: GroupData) => {
-    clearSelectedGroup();
+    if (selectedGroup?.group_id === group.group_id) {
+      clearSelectedGroup();
+      leaveRoom(selectedGroup?.group_id!);
+    }
     const groupMembers = await fetchGroupMembers(group.group_id);
     const currentMember = groupMembers.find(
       (member) => member.member_id === user?.user_id
@@ -153,6 +159,7 @@ const GroupsPage = () => {
     setGroupMembers(groupMembers);
     setCurrentMember(currentMember);
     setSelectedGroup(group);
+    joinRoom(group.group_id);
   };
 
   useEffect(() => {
@@ -201,7 +208,7 @@ const GroupsPage = () => {
         />
         <ChatList
           chats={filteredGroups}
-          onSelectConversation={(group) =>
+          handleSelectChat={(group) =>
             handleSelectConversation(group as GroupData)
           }
         />

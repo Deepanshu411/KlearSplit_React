@@ -1,26 +1,19 @@
 import { useEffect } from "react";
 import { getBalanceAsNumber } from "../utils/getBalanceAsNumber.ts"; // Utility function for balance conversion
-import { useSocket } from "../hooks/useSocket.tsx";
 import isFriendsConversations from "../utils/isFriendsConversations.ts";
-import isFriendsConversation from "../utils/getConversationType.ts";
 
 interface ChatListProps {
   chats: FriendData[] | GroupData[];
-  onSelectConversation: (friend: FriendData | GroupData) => void;
+  handleSelectChat: (friend: FriendData | GroupData) => void;
 }
 
-const ChatList: React.FC<ChatListProps> = ({ chats, onSelectConversation }) => {
-  const { joinRoom } = useSocket();
+const ChatList: React.FC<ChatListProps> = ({ chats, handleSelectChat }) => {
   useEffect(() => {
     const chatList = document.querySelector(".chat-list");
     if (chatList) {
       chatList.scrollTop = chatList.scrollHeight;
     }
   }, [chats]);
-  const handleSelectChat = (chat: FriendData | GroupData) => {
-    onSelectConversation(chat);
-    isFriendsConversation(chat) ? joinRoom(chat.conversation_id) : joinRoom(chat.group_id);
-  }
   return (
     <div className="flex flex-col justify-start items-center w-full min-h-[60vh] max-h-[60vh] overflow-y-auto">
       {isFriendsConversations(chats)
