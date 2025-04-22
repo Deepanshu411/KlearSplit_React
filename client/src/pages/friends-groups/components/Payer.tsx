@@ -88,9 +88,10 @@ const Payer: React.FC<PayerProps> = ({
             Choose Payer
           </DialogTitle>
           <Box className="rounded bg-[white] flex flex-col">
-            {isFriendsConversation(chat)
-              ? participants &&
-                participants.map((participant) => (
+            <Box className="rounded bg-[white] flex flex-col max-h-[35vh] overflow-auto">
+              {isFriendsConversation(chat)
+                ? participants &&
+                  participants.map((participant) => (
                     <React.Fragment key={participant.user_id}>
                       <ListItem
                         disablePadding
@@ -147,8 +148,8 @@ const Payer: React.FC<PayerProps> = ({
                       <Divider />
                     </React.Fragment>
                   ))
-              : groupParticipants &&
-                groupParticipants.map((participant) => (
+                : groupParticipants &&
+                  groupParticipants.map((participant) => (
                     <React.Fragment key={participant.group_membership_id}>
                       <ListItem
                         disablePadding
@@ -157,7 +158,8 @@ const Payer: React.FC<PayerProps> = ({
                         className="cursor-pointer"
                         sx={{
                           backgroundColor:
-                            groupPayer?.group_membership_id === participant.group_membership_id
+                            groupPayer?.group_membership_id ===
+                            participant.group_membership_id
                               ? "#dbeafe"
                               : "transparent",
                           borderRadius: 2,
@@ -193,6 +195,7 @@ const Payer: React.FC<PayerProps> = ({
                       <Divider />
                     </React.Fragment>
                   ))}
+            </Box>
             <Box className="flex justify-end items-center p-3">
               <Button onClick={handlePayerDialogClose}>Cancel</Button>
             </Box>

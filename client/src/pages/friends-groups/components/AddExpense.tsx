@@ -58,6 +58,7 @@ interface AddExpenseProps {
   setGroupExpensesView?: React.Dispatch<
     React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>
   >;
+  setGroupMembers?: React.Dispatch<React.SetStateAction<GroupMemberData[]>>;
   setCombinedView: React.Dispatch<
     React.SetStateAction<
       (
@@ -88,6 +89,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({
   setGroupExpensesView,
   setCombinedView,
   chatMembers,
+  setGroupMembers,
   currentMember,
   friendExpenseToUpdate,
   groupExpenseToUpdate,
@@ -454,7 +456,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({
   const handleBulkExpenseOpen = () => {
     setOpenBulkAddExpense(true);
     handleAddExpensesClose();
-  }
+  };
   const onAddExpenseClose = () => {
     setOpenConfirm(true);
   };
@@ -606,7 +608,10 @@ const AddExpense: React.FC<AddExpenseProps> = ({
               ...prev,
               { ...newExpense, type: "expense" },
             ]);
-            const updatedBalanceAmount = isUserPayer(user?.user_id!, newExpense.payer_id)
+            const updatedBalanceAmount = isUserPayer(
+              user?.user_id!,
+              newExpense.payer_id
+            )
               ? (
                   parseFloat(chat.balance_amount) +
                   parseFloat(newExpense.debtor_amount)
@@ -703,10 +708,10 @@ const AddExpense: React.FC<AddExpenseProps> = ({
         split_type: splitType,
         payer_share:
           splitType === "EQUAL"
-            ? equalShares[groupPayer?.group_membership_id!]
+            ? equalShares[groupPayer?.group_membership_id!] ?? "0.00"
             : splitType === "UNEQUAL"
-            ? unequalShares[groupPayer?.group_membership_id!]
-            : percentageShares[groupPayer?.group_membership_id!],
+            ? unequalShares[groupPayer?.group_membership_id!] ?? "0.00"
+            : percentageShares[groupPayer?.group_membership_id!] ?? "0.00",
         debtors:
           splitType === "EQUAL"
             ? Object.entries(equalShares)
@@ -803,6 +808,76 @@ const AddExpense: React.FC<AddExpenseProps> = ({
                   : c
               );
             });
+            setGroupMembers &&
+              setGroupMembers((prev: GroupMemberData[]) => {
+                return prev.map((member) => {
+                  if (member.deletedAt) return member;
+                  const isCurrentMember =
+                    member.group_membership_id ===
+                    currentMember?.group_membership_id;
+                  const isCurrentMemberPayer =
+                    currentMember?.group_membership_id ===
+                    groupPayer?.group_membership_id;
+                  if (
+                    member.group_membership_id ===
+                    groupPayer?.group_membership_id
+                  ) {
+                    // Calculate the new balance for the payer
+                    const balanceWithUser = expenseParticipants.find(
+                      (participant) =>
+                        participant.debtor_id ===
+                        currentMember?.group_membership_id
+                    )?.debtor_amount;
+                    const newBalanceWithUser = !isCurrentMember
+                      ? (
+                          parseFloat(member.balance_with_user) +
+                          parseFloat(balanceWithUser ?? "0")
+                        ).toFixed(2)
+                      : "0.00";
+                    const newTotalBalance = (
+                      parseFloat(member.total_balance) +
+                      parseFloat(expenseData.total_debt_amount)
+                    ).toFixed(2);
+                    // Update balance_with_user for the payer
+                    return {
+                      ...member,
+                      balance_with_user: newBalanceWithUser,
+                      total_balance: newTotalBalance,
+                    };
+                  }
+                  // Find the participant in the expenseParticipants array
+                  // that matches the current member's group_membership_id
+                  // and is a debtor
+                  const participant = expenseParticipants.find(
+                    (participant) =>
+                      participant.debtor_id === member.group_membership_id
+                  );
+
+                  if (participant) {
+                    // Calculate the new balance for the member based on debtor_amount
+                    const newBalanceWithUser = isCurrentMemberPayer
+                      ? (
+                          parseFloat(member.balance_with_user) -
+                          parseFloat(participant.debtor_amount)
+                        ).toFixed(2)
+                      : member.balance_with_user;
+                    const newTotalBalance = (
+                      parseFloat(member.total_balance) -
+                      parseFloat(participant.debtor_amount)
+                    ).toFixed(2);
+
+                    // Update balance_with_user for the debtor
+                    return {
+                      ...member,
+                      balance_with_user: newBalanceWithUser,
+                      total_balance: newTotalBalance,
+                    };
+                  }
+
+                  // If the member is not a participant (not a debtor), no change
+                  return member;
+                });
+              });
             resetForm();
             handleAddExpensesClose();
           } catch (error) {
@@ -842,10 +917,11 @@ const AddExpense: React.FC<AddExpenseProps> = ({
                 (member) => expenseData.payer_id === member.group_membership_id
               );
               expenseData.payer = getFullNameAndImage(payer);
-              expenseData.user_debt = expenseParticipants.find(
-                (participant) =>
-                  participant.debtor_id === currentMember?.group_membership_id
-              )!.debtor_amount;
+              expenseData.user_debt =
+                expenseParticipants.find(
+                  (participant) =>
+                    participant.debtor_id === currentMember?.group_membership_id
+                )?.debtor_amount ?? "0.00";
             }
             toast.success("Expense updated successfully!");
             setGroupExpenses &&
@@ -964,7 +1040,10 @@ const AddExpense: React.FC<AddExpenseProps> = ({
         chat={chat}
         onCancel={() => setOpenBulkAddExpense(false)}
         onAddedExpenses={handleAddedExpenses}
-        onSwitchToSingle={() => {setOpenBulkAddExpense(false); setOpen && setOpen(true)}}
+        onSwitchToSingle={() => {
+          setOpenBulkAddExpense(false);
+          setOpen && setOpen(true);
+        }}
         setExpenses={setExpenses!}
         setCombinedView={setCombinedView}
         setChats={setChats}
@@ -1113,8 +1192,10 @@ const AddExpense: React.FC<AddExpenseProps> = ({
                     : "justify-end"
                 }`}
               >
-                {(isFriendsConversation(chat) && title === "Add Expense") && (
-                  <Button onClick={handleBulkExpenseOpen}>Bulk Insertion of Expenses</Button>
+                {isFriendsConversation(chat) && title === "Add Expense" && (
+                  <Button onClick={handleBulkExpenseOpen}>
+                    Bulk Insertion of Expenses
+                  </Button>
                 )}
                 <Box className="flex gap-3">
                   <Button onClick={onAddExpenseClose}>Cancel</Button>

@@ -289,6 +289,7 @@ const GroupsPage = () => {
             setGroupExpenses={setGroupExpenses}
             setCombinedView={setCombinedView}
             chatMembers={groupMembers}
+            setGroupMembers={setGroupMembers}
             currentMember={currentMember}
             onSend={onSendGroupMessage}
           />

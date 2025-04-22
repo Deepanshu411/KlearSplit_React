@@ -337,140 +337,134 @@ const SplitType: React.FC<SplitTypeProps> = ({
             <Divider />
           </Box>
           <Box className="bg-white flex flex-col">
-            {isFriendsConversation(chat)
-              ? participants &&
-                participants.map((participant) => (
-                  <React.Fragment key={participant.user_id}>
-                    <ListItem
-                      disablePadding
-                      alignItems="flex-start"
-                    >
-                      <ListItemButton sx={{ paddingX: 1 }}>
-                        <ListItemAvatar sx={{ minWidth: 32, paddingRight: 1 }}>
-                          <Avatar
-                            alt={participant.first_name}
-                            src={
-                              participant.image_url ??
-                              "/profile.png"
+            <Box className="bg-white flex flex-col max-h-[35vh] overflow-auto">
+              {isFriendsConversation(chat)
+                ? participants &&
+                  participants.map((participant) => (
+                    <React.Fragment key={participant.user_id}>
+                      <ListItem disablePadding alignItems="flex-start">
+                        <ListItemButton sx={{ paddingX: 1 }}>
+                          <ListItemAvatar
+                            sx={{ minWidth: 32, paddingRight: 1 }}
+                          >
+                            <Avatar
+                              alt={participant.first_name}
+                              src={participant.image_url ?? "/profile.png"}
+                              sx={{ width: 32, height: 32 }}
+                            />
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={
+                              <Box className="flex justify-between">
+                                {participant.first_name} {participant.last_name}
+                              </Box>
                             }
-                            sx={{ width: 32, height: 32 }}
-                          />
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Box className="flex justify-between">
-                              {participant.first_name} {participant.last_name}
-                            </Box>
-                          }
-                          secondary={
-                            <Typography
-                              variant="body2"
-                              sx={{ color: "text.primary" }}
-                            >
-                              {participant.email}
-                            </Typography>
-                          }
-                        />
-                        <TextField
-                          type="number"
-                          size="small"
-                          value={
-                            splitType === "EQUAL"
-                              ? equalShares[participant.user_id]
-                              : splitType === "UNEQUAL"
-                              ? unequalShares[participant.user_id] || ""
-                              : percentageShares[participant.user_id] || ""
-                          }
-                          disabled={splitType === "EQUAL"}
-                          onChange={(e) =>
-                            handleChange(
-                              participant.user_id,
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                          className={
-                            splitType === "EQUAL" ? "cursor-not-allowed" : ""
-                          }
-                          sx={{ maxWidth: 80 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))
-              : localGroupParticipants.map((participant) => (
-                  <React.Fragment key={participant.group_membership_id}>
-                    <ListItem
-                      disablePadding
-                      alignItems="flex-start"
-                    >
-                      <ListItemButton sx={{ paddingX: 1 }}>
-                        <ListItemAvatar sx={{ minWidth: 32, paddingRight: 1 }}>
-                          <Avatar
-                            alt={participant.first_name}
-                            src={
-                              participant.image_url ??
-                              "/profile.png"
-                            }
-                            sx={{ width: 32, height: 32 }}
-                          />
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Box className="flex justify-between">
-                              {participant.first_name} {participant.last_name}
-                            </Box>
-                          }
-                        />
-                        {splitType === "EQUAL" ? (
-                          <Checkbox
-                            checked={selectedIds.includes(
-                              participant.group_membership_id
-                            )}
-                            onChange={() =>
-                              handleCheckboxChange(
-                                participant.group_membership_id
-                              )
+                            secondary={
+                              <Typography
+                                variant="body2"
+                                sx={{ color: "text.primary" }}
+                              >
+                                {participant.email}
+                              </Typography>
                             }
                           />
-                        ) : (
                           <TextField
                             type="number"
                             size="small"
                             value={
-                              splitType === "UNEQUAL"
-                                ? unequalShares[
-                                    participant.group_membership_id
-                                  ] || ""
-                                : percentageShares[
-                                    participant.group_membership_id
-                                  ] || ""
+                              splitType === "EQUAL"
+                                ? equalShares[participant.user_id]
+                                : splitType === "UNEQUAL"
+                                ? unequalShares[participant.user_id] || ""
+                                : percentageShares[participant.user_id] || ""
                             }
+                            disabled={splitType === "EQUAL"}
                             onChange={(e) =>
                               handleChange(
-                                participant.group_membership_id,
+                                participant.user_id,
                                 parseFloat(e.target.value) || 0
                               )
                             }
+                            className={
+                              splitType === "EQUAL" ? "cursor-not-allowed" : ""
+                            }
                             sx={{ maxWidth: 80 }}
                           />
-                        )}
-                      </ListItemButton>
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}
-            {splitType !== "EQUAL" && (
-              <Typography align="center" className="p-3">
-                {totalAllocated} out of{" "}
-                {splitType === "PERCENTAGE" ? 100 : totalAmount} left
-              </Typography>
-            )}
-            {errorMessage && (
-              <Typography color="error" align="center">
-                {errorMessage}
-              </Typography>
-            )}
+                        </ListItemButton>
+                      </ListItem>
+                      <Divider />
+                    </React.Fragment>
+                  ))
+                : localGroupParticipants.map((participant) => (
+                    <React.Fragment key={participant.group_membership_id}>
+                      <ListItem disablePadding alignItems="flex-start">
+                        <ListItemButton sx={{ paddingX: 1 }}>
+                          <ListItemAvatar
+                            sx={{ minWidth: 32, paddingRight: 1 }}
+                          >
+                            <Avatar
+                              alt={participant.first_name}
+                              src={participant.image_url ?? "/profile.png"}
+                              sx={{ width: 32, height: 32 }}
+                            />
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={
+                              <Box className="flex justify-between">
+                                {participant.first_name} {participant.last_name}
+                              </Box>
+                            }
+                          />
+                          {splitType === "EQUAL" ? (
+                            <Checkbox
+                              checked={selectedIds.includes(
+                                participant.group_membership_id
+                              )}
+                              onChange={() =>
+                                handleCheckboxChange(
+                                  participant.group_membership_id
+                                )
+                              }
+                            />
+                          ) : (
+                            <TextField
+                              type="number"
+                              size="small"
+                              value={
+                                splitType === "UNEQUAL"
+                                  ? unequalShares[
+                                      participant.group_membership_id
+                                    ] || ""
+                                  : percentageShares[
+                                      participant.group_membership_id
+                                    ] || ""
+                              }
+                              onChange={(e) =>
+                                handleChange(
+                                  participant.group_membership_id,
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
+                              sx={{ maxWidth: 80 }}
+                            />
+                          )}
+                        </ListItemButton>
+                      </ListItem>
+                      <Divider />
+                    </React.Fragment>
+                  ))}
+              {splitType !== "EQUAL" && (
+                <Typography align="center" className="p-3">
+                  {totalAllocated} out of{" "}
+                  {splitType === "PERCENTAGE" ? 100 : totalAmount} left
+                </Typography>
+              )}
+              {errorMessage && (
+                <Typography color="error" align="center">
+                  {errorMessage}
+                </Typography>
+              )}
+            </Box>
             <Box className="flex justify-end items-center p-3 gap-3">
               <Button onClick={handleSplitTypeClose}>Cancel</Button>
               <Button disabled={!isValid} onClick={confirmSelectedParticipants}>

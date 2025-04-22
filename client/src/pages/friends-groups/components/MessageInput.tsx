@@ -13,6 +13,7 @@ interface MessageInputProps {
   setGroupExpenses?: React.Dispatch<
     React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>
   >;
+  setGroupMembers?: React.Dispatch<React.SetStateAction<GroupMemberData[]>>;
   setCombinedView: React.Dispatch<
     React.SetStateAction<
       (
@@ -35,7 +36,9 @@ const MessageInput: React.FC<MessageInputProps> = ({
   blockStatusGroups,
   setChats,
   setExpenses,
+  setGroupExpenses,
   setCombinedView,
+  setGroupMembers,
   chatMembers,
   currentMember,
   onSend,
@@ -73,8 +76,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
         setChats={setChats}
         handleAddExpensesClose={handleAddExpensesClose}
         setExpenses={setExpenses}
+        setGroupExpenses={setGroupExpenses}
         setCombinedView={setCombinedView}
         chatMembers={chatMembers}
+        setGroupMembers={setGroupMembers}
         currentMember={currentMember}
       />
       <div
