@@ -121,7 +121,7 @@ const AddFriend: React.FC<AddFriendProps> = ({ open, handleClose }) => {
       />
       <Dialog
         open={open}
-        onClose={handleClose}
+        onClose={onAddFriendClose}
         slotProps={{
           paper: {
             component: "form",

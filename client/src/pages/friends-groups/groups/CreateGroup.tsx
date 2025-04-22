@@ -238,7 +238,7 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
         onConfirm={handleConfirm}
         onCancel={handleCancel}
       />
-      <Modal open={open} onClose={handleClose}>
+      <Modal open={open} onClose={onClose}>
         <motion.div
           initial={{ x: 0 }}
           animate={membersDialogOpen ? { x: -200 } : { x: 0 }} // Slide to the left when second modal opens

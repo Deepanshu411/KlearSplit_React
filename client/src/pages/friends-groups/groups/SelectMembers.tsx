@@ -155,7 +155,7 @@ const SelectMembersDialog: React.FC<Props> = ({
         onConfirm={handleConfirm}
         onCancel={handleCancel}
       />
-      <Modal open={open} onClose={handleClose}>
+      <Modal open={open} onClose={onClose}>
         <motion.div
           initial={{ x: 0, opacity: 0 }}
           animate={{ x: title === "Select Members" ? 300 : 50, opacity: 1 }}

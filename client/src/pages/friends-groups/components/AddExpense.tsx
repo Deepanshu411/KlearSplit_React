@@ -16,7 +16,7 @@ import Button from "@mui/joy/Button";
 import Payer from "./Payer";
 import { motion } from "framer-motion";
 import SplitType from "./SplitType";
-import { addExpense, bulkAddExpenses, updateExpense } from "../friends/services";
+import { addExpense, updateExpense } from "../friends/services";
 import { toast } from "sonner";
 import isFriendsConversation from "../utils/getConversationType";
 import ConfirmDialog from "../../../components/shared/ConfirmDialog";
@@ -903,7 +903,7 @@ const AddExpense: React.FC<AddExpenseProps> = ({
       }
     }
   };
-  
+
   const onChange = (key: string, value: string | number) =>
     isFriendsConversation(chat)
       ? setExpenseInfo((prev) => ({ ...prev, [key]: value }))
@@ -965,8 +965,11 @@ const AddExpense: React.FC<AddExpenseProps> = ({
         onCancel={() => setOpenBulkAddExpense(false)}
         onAddedExpenses={handleAddedExpenses}
         onSwitchToSingle={() => {setOpenBulkAddExpense(false); setOpen && setOpen(true)}}
+        setExpenses={setExpenses!}
+        setCombinedView={setCombinedView}
+        setChats={setChats}
       />
-      <Modal open={open} onClose={handleAddExpensesClose}>
+      <Modal open={open} onClose={onAddExpenseClose}>
         <motion.div
           initial={{ x: 0 }}
           animate={payerDialogOpen || splitTypeOpen ? { x: -200 } : { x: 0 }} // Slide to the left when second modal opens
