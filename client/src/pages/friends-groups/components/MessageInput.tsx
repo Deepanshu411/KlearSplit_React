@@ -42,13 +42,24 @@ const MessageInput: React.FC<MessageInputProps> = ({
 }) => {
   const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState(false);
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newMessage = e.target.value;
+
+    if (newMessage.length <= 512) {
+      setMessage(newMessage);
+      setError(false);
+    } else {
+      setError(true);
+    }
+  };
 
   const handleSendMessage = () => {
     if (message.trim() === "") return; // Prevent sending empty message
     onSend(message);
     setMessage("");
   };
-
 
   const handleAddExpensesClose = () => setAddExpenseDialogOpen(false);
   const handleAddExpensesOpen = () => setAddExpenseDialogOpen(true);
@@ -93,13 +104,15 @@ const MessageInput: React.FC<MessageInputProps> = ({
           multiline
           maxRows={2}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={handleMessageChange}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault(); // prevents newline on Enter
               handleSendMessage();
             }
           }}
+          error={error}
+          helperText={error ? "Maximum 512 characters allowed" : ""}
           disabled={blockStatus === "UNBLOCK" || blockStatusGroups}
           sx={
             blockStatus === "UNBLOCK" || blockStatusGroups
