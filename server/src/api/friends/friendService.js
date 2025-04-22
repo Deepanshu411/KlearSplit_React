@@ -731,7 +731,7 @@ class FriendService {
             "debtor_share": row[ "Debtor Share" ]
           };
           
-          const debtorAmount = calculateDebtorAmount(processedRow);
+          const debtorAmount = calculateDebtorAmount(userId, processedRow);
 
           Object.assign(processedRow, { "debtor_amount": debtorAmount });
 
