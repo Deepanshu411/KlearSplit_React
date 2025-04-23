@@ -1,4 +1,4 @@
-# KlearSplit
+# KlearSplit_React
 
 **KlearSplit** is a web application that consists of a client built with React and a server built with Node.js, Express, and Sequelize (for database handling). The application uses JWT-based authentication and includes role-based access control, as well as cookie handling for refresh tokens.
 
