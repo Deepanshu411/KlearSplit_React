@@ -6,11 +6,12 @@ import { generatePassword } from "../utils/passwordGenerator.js";
 import { hashedPassword } from "./../utils/hashPassword.js";
 import sendMail from "../utils/sendMail.js";
 import AuthService from "../auth/authServices.js";
-import { sequelize } from "../../config/db.connection.js";
 import UserDb from "../users/userDb.js";
 import { ErrorHandler } from "./errorHandler.js";
 import Redis from "ioredis";
 import logger from "../utils/logger.js";
+import { auditLogFormat } from "../utils/auditFormat.js";
+import AuditLogService from "../audit/auditService.js";
 
 const redis = new Redis();
 
@@ -25,11 +26,10 @@ passport.use(
       "callbackURL": "http://localhost:3000/api/auth/google/callback"
     },
     async(accessToken, refreshToken, profile, done) => {
-      const transaction = await sequelize.transaction();
-
       try {
         // Check if the user already exists in the database
         let user = await UserDb.getUserByEmail(profile._json.email);
+        let log = {};
 
         // If user is not present in the database or is been invited by someone
         if (!user || (user && user.dataValues.is_invited)) {
@@ -43,23 +43,28 @@ passport.use(
           }
           // If user is not present in database then create otherwise update the user information in the database
           if (!user) {
-            user = await UserDb.createUser(newUser, transaction);
-            user = user.dataValues;
+            user = (await UserDb.createUser(newUser)).dataValues;
+            log = auditLogFormat("INSERT", user.user_id, "users", user.user_id, { "newData": user });
           } else {
+            const oldData = user.dataValues;
+
             user = await UserDb.updateUser(
               newUser,
-              user.dataValues.user_id,
-              transaction
+              user.dataValues.user_id
             );
+
             user = user[ 0 ].dataValues;
+            log = auditLogFormat("UPDATE", user.user_id, "users", user.user_id, { oldData, "newData": user });
           }
+
+          AuditLogService.createLog(log);
 
           const options = {
             "email": user.email,
             "subject": "Password for Sign in for KlearSplit"
           };
 
-          await sendMail(options, "passwordTemplate", {
+          sendMail(options, "passwordTemplate", {
             "name": user.first_name,
             "heading": "Welcome to Our Service",
             "email": user.email,
@@ -89,13 +94,8 @@ passport.use(
         await AuthService.createRefreshToken(generatedRefreshToken, user.email);
 
         await redis.del(failedAttemptsKey);
-
-        // Commit the transaction
-        await transaction.commit();
-
         return done(null, { user, generatedAccessToken, generatedRefreshToken });
       } catch (error) {
-        await transaction.rollback();
         logger.log({
           "level": "error",
           "message": JSON.stringify({

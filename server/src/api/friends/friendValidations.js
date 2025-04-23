@@ -1,7 +1,7 @@
 import Joi from "joi";
 
 // Validation schema for UUID in the parameters
-// Ensures the `conversation_id` is a valid UUID and is required
+// Ensures the `id` is a valid UUID and is required
 const uuidParamValidation = Joi.object({
   "conversation_id": Joi.string()
     .uuid()
@@ -15,6 +15,8 @@ const uuidParamValidation = Joi.object({
 const paginationValidation = Joi.object({
   "page": Joi.number().integer().min(1).label("Page"), // Ensures `page` is a positive integer
   "pageSize": Joi.number().integer().min(1).label("Page Size"), // Ensures `pageSize` is a positive integer
+  "offset": Joi.number().min(0).max(2).optional(),
+  "timestamp": Joi.date(),
   "fetchAll": Joi.boolean().optional() // Optional boolean to fetch all results
 });
 

@@ -7,8 +7,7 @@
 - [Installation](#installation)
   - [Prerequisites](#prerequisites)
   - [Cloning the Repository](#cloning-the-repository)
-  - [Backend (Node.js)](#backend-nodejs)
-  - [Frontend (React)](#frontend-react)
+  - [Running the Application](#running-the-application)
 - [Environment Variables](#environment-variables)
 
 ## Technologies Used
@@ -25,6 +24,8 @@
 
 ### Frontend (Client):
 - **React.js**
+- **Axios**
+- **Cookies** for token management
 
 ## Installation
 
@@ -52,7 +53,7 @@ cd KlearSplit_React
     npm install
     ```
 
-3. Start the application:
+2. Start the application:
 
     ```bash
     npm run dev

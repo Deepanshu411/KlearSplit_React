@@ -38,7 +38,6 @@ class AuthService {
       );
     }
 
-    // checking whether password is valid
     const validPassword = await bcrypt.compare(
       password,
       user.dataValues.password
@@ -53,7 +52,7 @@ class AuthService {
           "subject": "Important: Your Account Has Been Temporarily Locked"
         };
 
-        await sendMail(options, "accountBlock", {
+        sendMail(options, "accountBlock", {
           "name": user.dataValues.first_name,
           email,
           "lockoutDuration": "15 minutes"

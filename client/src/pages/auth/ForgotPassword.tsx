@@ -1,197 +1,173 @@
-import { Google, Lock, Person, Visibility, VisibilityOff } from "@mui/icons-material";
-import { Stack, TextField, Button, Typography, InputAdornment, IconButton } from "@mui/material";
-import axios from "axios";
-import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useState } from "react";
+import { TextField, Button, Typography, Stack, InputAdornment } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { login } from "../../store/authSlice";
+import authService from "./authService";
 import logo from "/logo.png";
+import { Person, Lock } from "@mui/icons-material";
 
 const ForgotPassword = () => {
+    const [email, setEmail] = useState("");
+    const [otp, setOtp] = useState("");
+    const [step, setStep] = useState(1);
+    const [errors, setErrors] = useState({ email: "", otp: "" });
     const navigate = useNavigate();
-    const dispatch = useDispatch();
-    const [loginInfo, setLoginInfo] = useState({
-        email: '',
-        password: ''
-    });
-    const [errors, setErrors] = useState({
-        email: '',
-        password: ''
-    });
-    const validateField = (name: string, value: string) => {
-        let errorMsg = "";
 
+    // Validate input fields
+    const validate = (name: string, value: string) => {
+        let error = "";
         switch (name) {
-            case "email":
-                if (!value) errorMsg = "Email is required";
-                else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
-                    errorMsg = "Invalid email format";
-                break;
-            case "password":
-                if(!value) errorMsg = "Password is required";
-                break;
+            case "email": {
+                if (!value) {
+                    error = "Email is required";
+                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    error = "Invalid email format";
+                }
+            }
+            break;
+            case "otp": {
+                if (!value) {
+                    error = "OTP is required";
+                } else if (!/^\d{6}$/.test(value)) {
+                    error = "OTP must be a 6-digit number";
+                }
+            }
+            break;
         }
-        return errorMsg;
+        setErrors((prev) => ({ ...prev, [name]: error }));
     };
-    const [isLoginDisabled, setIsLoginDisabled] = useState(true);
-    const isValid = !Object.entries(loginInfo).every(([key, value]) => !validateField(key, value));
-    useEffect(() => setIsLoginDisabled(isValid), [isValid]);
-    const handleSubmit = async(e: React.FormEvent) => {
+
+    // Handle input changes and validate
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        if (name === "email") setEmail(value);
+        if (name === "otp") setOtp(value);
+        validate(name, value);
+    };
+
+    // Check if form is valid
+    const isForgotPasswordDisabled = () =>
+        !email || !!errors.email || (step === 2 && (!otp || !!errors.otp));
+
+    const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        const res = await axios.post("http://localhost:3000/api/auth/login", loginInfo)
-        if(!res.data.success) {
-            toast.error(res.data.message);
-        }
-        dispatch(login(res.data.data))
-        navigate("/dashboard");
-        toast.success(res.data.message);
-    }
-
-    const [showPassword, setShowPassword] = useState(false);
-
-    const onChange = (key: string, value: string) => {
-        setLoginInfo((prev) => ({ ...prev, [key]: value }));
-        setErrors((prev) => ({ ...prev, [key]: validateField(key, value) }));
-    }
-
-    const handleClickShowPassword = () => setShowPassword((show) => !show);
-
-    const handleMouseDownPassword = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
+        if (errors.email) return;
+        const res = await authService.verifyForgotPassword(email);
+        if (!res) return;
+        toast.success("OTP sent to your email");
+        setStep(2);
     };
 
-    const handleMouseUpPassword = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (errors.otp) return;
+        const res = await authService.forgotPassword(email, otp);
+        if (!res) return;
+        toast.success("OTP verified");
+        navigate("/login");
     };
-
-    const handleGoogleLogin = () => {
-        const newWindow = window.open("http://localhost:3000/api/auth/google", "_self");
-        if (newWindow) {
-          newWindow.opener = null; // Ensures no link between the parent and the new window
-        }
-      }
 
     return (
-        <>
-            <div className="flex justify-center min-h-screen items-center w-full md:w-6/7 mx-auto grid grid-cols-10 p-10 rounded-sm">
-                <div className="md:col-span-5 col-span-10 h-full bg-[#D1F8EF] shadow-2xl rounded-lg md:rounded-l-lg md:rounded-r-none p-6 items-center">
-                    <Typography variant="h4" align="center" color="primary" className="pb-7" sx={{ fontWeight: 700 }}>
-                        <div className="flex justify-center items-center">
-                            <img src={logo} style={{width: "85px"}} alt="logo" />
-                        </div>
-                        KLEARSPLIT
-                    </Typography>
-                    <form onSubmit={handleSubmit}>
-                        <Stack spacing={2}>
-                            <TextField
-                                label="Email"
-                                required
-                                variant="outlined"
-                                name="email"
-                                value={loginInfo.email}
-                                onChange={(e) => onChange("email", e.target.value.trim())}
-                                onBlur={(e) => onChange("email", e.target.value.trim())}
-                                fullWidth
-                                error={!!errors.email}
-                                helperText={errors.email}
-                                slotProps={{
-                                    input: {
-                                        startAdornment: (
-                                        <InputAdornment position="start">
-                                            <Person />
-                                        </InputAdornment>
-                                        ),
-                                    },
-                                }}
-                            />
-                            <TextField
-                                sx={{ m: 1 }}
-                                variant="outlined"
-                                required
-                                id="outlined-adornment-password"
-                                label="Password"
-                                type={showPassword ? 'text' : 'password'}
-                                value={loginInfo.password}
-                                error={!!errors.password}
-                                helperText={errors.password} // Ensure `errors.password` exists
-                                onChange={(e) => onChange("password", e.target.value.trim())}
-                                onBlur={(e) => onChange("password", e.target.value.trim())}
-                                fullWidth
-                                slotProps={{
-                                    input: {
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <Lock />
-                                            </InputAdornment>
-                                        ),
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    aria-label={showPassword ? 'hide the password' : 'display the password'}
-                                                    onClick={handleClickShowPassword}
-                                                    onMouseDown={handleMouseDownPassword}
-                                                    onMouseUp={handleMouseUpPassword}
-                                                    edge="end"
-                                                >
-                                                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        )
-                                    }
-                                }}
-                            />
-
-                            <div className="mt-4 text-right">
-                                <Link to="/register" className="text-blue-600 hover:underline">
-                                    Forgot your Password?
-                                </Link>
-                            </div>
-                            <Button variant="contained" type="submit" disabled={isLoginDisabled}>LOGIN</Button>
-                            <div className="flex items-center mt-4">
-                                <div className="flex-grow border-t" style={{ border: '1px solid rgba(51, 60, 77, 0.6)' }}></div>
-                                <span className="mx-2">OR</span>
-                                <div className="flex-grow border-t" style={{ border: '1px solid rgba(51, 60, 77, 0.6)' }}></div>
-                            </div>
-                            <Button
-                                fullWidth
-                                variant="outlined"
-                                startIcon={<Google />}
-                                sx={{ padding: 2 }}
-                                className="mt-4 text-white border-white"
-                                onClick={handleGoogleLogin}
-                            >
-                                Sign in with Google
-                            </Button>
-
-                            <div className="mt-4 text-center">
-                                Don't have an account?{' '}
-                                <Link to="/register" className="text-blue-400 hover:underline">
-                                    Register now
-                                </Link>
-                            </div>
-                        </Stack>
-                    </form>
-                </div>
-                <div className="col-span-5 h-full bg-[#3674B5] rounded-r-lg shadow-2xl md:w-full h-full hidden md:block flex items-center content-center bg-[#3674B5] ">
-                    <div className="text-white px-4 py-5 md:px-10 md:py-12 mx-4">
-                        <h4 className="mb-4 text-2xl font-semibold">Welcome to KlearSplit!</h4>
-                        <p className="text-sm mb-0">
-                            Easily manage and split bills with friends and family. Whether you're sharing a meal, an apartment, or travel expenses, our intuitive platform takes the hassle out of dividing costs. Key Features:
-                        </p>
-                        <ul className="text-sm mb-0 list-disc pl-5">
-                            <li>Effortless Bill Splitting: Quickly calculate each person's share.</li>
-                            <li>Track Expenses: Keep an organized record of who owes what.</li>
-                            <li>Reminders: Never forget to settle up with gentle reminders.</li>
-                        </ul>
-                        <p className="text-sm mb-0 mt-4">
-                            Start enjoying stress-free sharing today!
-                        </p>
+        <div className="flex justify-center min-h-screen items-center w-full md:w-6/7 mx-auto grid grid-cols-10 p-10 rounded-sm">
+            {/* Left Section */}
+            <div className="md:col-span-5 col-span-10 h-full bg-[#D1F8EF] shadow-2xl rounded-lg md:rounded-l-lg md:rounded-r-none p-6 flex flex-col items-center">
+                <Typography variant="h4" align="center" color="primary" sx={{ fontWeight: 700 }}>
+                    <div className="flex justify-center items-center">
+                        <img src={logo} width="85" alt="logo" />
                     </div>
+                    KLEARSPLIT
+                </Typography>
+
+                <form onSubmit={step === 1 ? handleSendOtp : handleVerifyOtp} className="w-full py-4">
+                    <Stack spacing={2}>
+                        {/* Email Field */}
+                        <TextField
+                            label="Email"
+                            required
+                            variant="outlined"
+                            name="email"
+                            value={email}
+                            onChange={handleInputChange}
+                            error={!!errors.email}
+                            helperText={errors.email}
+                            fullWidth
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <Person />
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+
+                        {step === 2 && (
+                            <TextField
+                                label="OTP"
+                                required
+                                variant="outlined"
+                                name="otp"
+                                value={otp}
+                                onChange={handleInputChange}
+                                error={!!errors.otp}
+                                helperText={errors.otp}
+                                fullWidth
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <Lock />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        )}
+
+                        {/* Submit Button */}
+                        <Button variant="contained" type="submit" disabled={isForgotPasswordDisabled()} fullWidth>
+                            {step === 1 ? "Send OTP" : "Verify OTP"}
+                        </Button>
+
+                        {/* Back to Login */}
+                        <div className="text-right">
+                            <Link to="/login" className="text-blue-600 hover:underline">
+                                Back to Login
+                            </Link>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="flex items-center">
+                            <div className="flex-grow border-t border-gray-400"></div>
+                            <span className="mx-2 text-gray-600">OR</span>
+                            <div className="flex-grow border-t border-gray-400"></div>
+                        </div>
+
+                        {/* Register Link */}
+                        <div className="text-center">
+                            Don't have an account?{" "}
+                            <Link to="/register" className="text-blue-400 hover:underline">
+                                Register now
+                            </Link>
+                        </div>
+                    </Stack>
+                </form>
+            </div>
+
+            {/* Right Section */}
+            <div className="col-span-5 h-full md:w-full hidden md:box lg:flex items-center bg-[#3674B5] rounded-r-lg shadow-2xl px-10 py-12 text-white">
+                <div>
+                    <h4 className="text-2xl font-semibold mb-4">Welcome to KlearSplit!</h4>
+                    <p className="text-sm mb-4">
+                        Easily manage and split bills with friends and family. Whether you're sharing a meal, an apartment, or travel expenses, our intuitive platform takes the hassle out of dividing costs.
+                    </p>
+                    <ul className="text-sm list-disc pl-5">
+                        <li>Effortless Bill Splitting: Quickly calculate each person's share.</li>
+                        <li>Track Expenses: Keep an organized record of who owes what.</li>
+                        <li>Reminders: Never forget to settle up with gentle reminders.</li>
+                    </ul>
+                    <p className="text-sm mt-4">Start enjoying stress-free sharing today!</p>
                 </div>
             </div>
-        </>
-    )
-}
+        </div>
+    );
+};
 
-export default ForgotPassword
+export default ForgotPassword;

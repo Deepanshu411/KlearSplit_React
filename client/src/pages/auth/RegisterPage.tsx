@@ -3,14 +3,22 @@ import { Stack, TextField, Button, Typography, InputAdornment } from "@mui/mater
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import axios from "axios";
 import { useDispatch } from "react-redux";
 import { login } from "../../store/authSlice";
+import API_URLS from "../../constants/apis/urls";
+import axiosInstance from "../../services/axiosInterceptor";
+
+interface SignUPInfo {
+    first_name: string,
+    last_name: string,
+    email: string,
+    phone: string
+}
 
 const RegisterPage = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const [signupInfo, setSignupInfo] = useState({
+    const [signupInfo, setSignupInfo] = useState<SignUPInfo>({
         first_name: '',
         last_name: '',
         email: '',
@@ -67,24 +75,27 @@ const RegisterPage = () => {
 
     const handleSubmit = async(e: React.FormEvent) => {
         e.preventDefault();
+        const dataToSend: Record<string, string> = {};
+        Object.keys(signupInfo).forEach((key) => {
+            const value = signupInfo[key as keyof SignUPInfo];
+            if (value !== "") {
+                dataToSend[key] = value;
+            }
+        })
         switch(stage) {
             case "signup":
-                const res = await axios.post("http://localhost:3000/api/users/verify", signupInfo)
-                if(!res.data.success) {
-                    toast.error(res.data.message);
-                }
+                const res = await axiosInstance.post(API_URLS.user.verify, dataToSend)
+                if(!res) return;
                 
                 setStage("otp");
-                toast.success(res.data.message);
+                toast.success("OTP sent to your email");
                 break;
             case "otp": {
-                const res = await axios.post("http://localhost:3000/api/users/register", { ...signupInfo, "otp": otp})
-                if(!res.data.success) {
-                    toast.error(res.data.message);
-                }
+                const res = await axiosInstance.post(API_URLS.user.register, { ...dataToSend, "otp": otp})
+                if(!res) return;
                 dispatch(login(res.data.data))
                 navigate("/dashboard");
-                toast.success(res.data.message);
+                toast.success("User registered successfully");
                 break;
             }
         }

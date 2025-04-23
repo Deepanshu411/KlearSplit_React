@@ -1,8 +1,54 @@
 import './App.css'
 import { RouterProvider } from 'react-router-dom'
 import { router } from "./routes/routes"
+import { Box } from '@mui/material';
+import HashLoader from "react-spinners/ClipLoader";
+import { useDispatch, useSelector } from 'react-redux';
+import { useEffect, useState } from 'react';
+import { login, logout } from './store/authSlice';
+import { toast } from 'sonner';
+import getUser from './services/userService';
+import { RootState } from './store';
 
 function App() {
+  const user = useSelector((state: RootState) => state.auth.user);
+  const dispatch = useDispatch();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await getUser();
+        if (response.status === 200) {
+          const userData = response.data.data;
+          dispatch(login(userData));
+        }
+      } catch (error) {
+        if (user) toast.info('You have been logged out, please log in again!');
+        dispatch(logout());
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [dispatch]);
+
+  if (loading) {
+    return (
+      <Box className="min-h-screen flex items-center justify-center px-[10%] gap-5">
+        <Box className="hidden md:flex w-1/2 h-full text-white flex-col items-center justify-center p-10 bg-[url('/bgsvg.svg')] bg-no-repeat bg-contain bg-center">
+          <h1 className="font-protest font-bold text-6xl mb-10 text-white p-10">
+            KLEARSPLIT
+          </h1>
+        </Box>
+        <Box className="flex items-center justify-center">
+          <HashLoader className="text-6xl mb-10 p-10" color="#ffffff" />
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <>
       <RouterProvider router={router} />

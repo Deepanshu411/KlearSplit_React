@@ -1,11 +1,17 @@
 import { sequelize } from "../../config/db.connection.js";
+import AuditLogService from "../audit/auditService.js";
 import { ErrorHandler } from "../middlewares/errorHandler.js";
 import UserDb from "../users/userDb.js";
+import { auditLogFormat } from "../utils/auditFormat.js";
 import { hashedPassword } from "../utils/hashPassword.js";
+import logger from "../utils/logger.js";
 import { generatePassword } from "../utils/passwordGenerator.js";
+import fileData from "../utils/readCsvFile.js";
 import sendMail from "../utils/sendMail.js";
+import { sendWhatsAppTemplateMessage } from "../utils/whatsappMessage.js";
+import validateBulkData from "../utils/validateBulkData.js";
 import FriendDb from "./friendDb.js";
-import { formatFriendData, getNewStatus, calculateDebtorAmount, calculateNewBalance, validateSettlementAmount, formatPersonName, validateSettlement, validateFriendExist, validateExistingExpense, validateConversationPermissions, validateUpdateParticipants, isBalanceUpdateRequired } from "./friendUtils.js";
+import { formatFriendData, getNewStatus, calculateDebtorAmount, calculateNewBalance, validateSettlementAmount, formatPersonName, validateSettlement, isFriendExist, validateExistingExpense, validateConversationPermissions, validateUpdateParticipants, isBalanceUpdateRequired } from "./friendUtils.js";
 
 class FriendService {
   /**
@@ -24,6 +30,7 @@ class FriendService {
    */
   static addFriend = async(friendData) => {
     let friendRequestTo = await UserDb.getUserByEmail(friendData.email);
+    const logs = [];
 
     if (!friendRequestTo) {
       // Generating random password
@@ -38,15 +45,15 @@ class FriendService {
         "is_invited": true,
         "password": hashPassword
       });
+      logs.push(auditLogFormat("INSERT", friendData.userId, "users", friendRequestTo.user_id, { "newData": friendRequestTo.dataValues }));
 
       const options = {
         "email": friendRequestTo.email,
         "subject": "Invited on KlearSplit"
       };
-      const sender = formatPersonName(friendData);
+      const sender = `${friendData.firstName} ${friendData.lastName || ""}`.trim();
 
       sendMail(options, "invitationTemplate", {
-        "name": friendRequestTo.firstName,
         sender
       });
     }
@@ -61,21 +68,32 @@ class FriendService {
     }
 
     // Check if the friend already exists and is not deleted
-    const friendExist = await this.checkFriendExist(newFriendData, false);
+    const friend = await this.checkFriendExist(newFriendData, false);
+    
+    const oldData = friend ? { ...friend.dataValues } : undefined;
 
-    if (friendExist && !friendExist.dataValues.deletedAt) {
+    if (friend && !friend.dataValues.deletedAt) {
       throw new ErrorHandler(409, "Friend already exist");
     }
 
     // Restore deleted friend request if found
-    if (friendExist && friendExist.dataValues.deletedAt) {
-      return await FriendDb.restoreFriend(friendExist);
+    if (friend && friend.dataValues.deletedAt) {
+      const restoredFriend = await FriendDb.restoreFriend(friend);
+
+      logs.push(auditLogFormat("UPDATE", friendData.userId, "friends", restoredFriend.conversation_id, { oldData, "newData": restoredFriend.dataValues }));
+
+      AuditLogService.createLog(logs, true);
+      return restoredFriend;
     }
 
     // Add the friend if no issues
-    const friend = await FriendDb.addFriend(newFriendData);
+    const newFriend = await FriendDb.addFriend(newFriendData);
 
-    return friend;
+    logs.push(auditLogFormat("INSERT", friendData.userId, "friends", newFriend.conversation_id, { "newData": newFriend.dataValues }));
+
+    AuditLogService.createLog(logs, true);
+
+    return newFriend;
   };
 
   /**
@@ -117,7 +135,7 @@ class FriendService {
    * @returns {Promise<Object>} - The updated friend request object.
    */
   static acceptRejectFriendRequest = async(friendRequest) => {
-    const { "conversation_id": conversationId, status } = friendRequest;
+    const { conversationId, status } = friendRequest;
     const friendRequestExist = await FriendDb.getFriend(conversationId);
 
     // If the friend request doesn't exist, throw an error
@@ -126,7 +144,7 @@ class FriendService {
     }
 
     // Check if the user is the one receiving the request and the request is still pending
-    if (friendRequest.user_id !== friendRequestExist.dataValues.friend2_id || friendRequest.status === "PENDING") {
+    if ((friendRequest.userId !== friendRequestExist.dataValues.friend2_id) || (friendRequest.status === "PENDING")) {
       throw new ErrorHandler(400, "Invalid request");
     }
 
@@ -135,6 +153,10 @@ class FriendService {
       { status },
       conversationId
     );
+
+    const log = auditLogFormat("UPDATE", friendRequest.userId, "friends", conversationId, { "oldData": friendRequestExist.dataValues, "newData": friendRequestUpdate[ 1 ][ 0 ].dataValues });
+
+    AuditLogService.createLog(log);
 
     return friendRequestUpdate;
   };
@@ -149,8 +171,9 @@ class FriendService {
    * @returns {Promise<Object>} - The deleted friend request object.
    */
   static withdrawFriendRequest = async(friendRequest) => {
-    const { "conversation_id": conversationId } = friendRequest;
+    const { userId, conversationId } = friendRequest;
     const friendRequestExist = await FriendDb.getFriend(conversationId);
+    const oldData = { ...friendRequestExist };
 
     // If the friend request doesn't exist, throw an error
     if (!friendRequestExist) {
@@ -159,16 +182,17 @@ class FriendService {
 
     // Check if the user is the one who sent the request and it is still pending
     if (
-      friendRequest.user_id !== friendRequestExist.dataValues.friend1_id || friendRequestExist.dataValues.status !== "PENDING"
+      userId !== friendRequestExist.dataValues.friend1_id || friendRequestExist.dataValues.status !== "PENDING"
     ) {
       throw new ErrorHandler(400, "Invalid request");
     }
 
     // Withdraw the friend request
     const friendRequestDelete = await FriendDb.withdrawFriendRequest(
-      friendRequest,
       friendRequestExist
     );
+
+    AuditLogService.createLog(auditLogFormat("DELETE", userId, "friends", friendRequestExist.conversation_id, { oldData }));
 
     return friendRequestDelete;
   };
@@ -185,19 +209,20 @@ class FriendService {
    *
    * @returns {Promise<Object>} - The updated friend data after performing the action.
    */
-  static archiveBlockFriend = async(friend) => {
-    const { userId, type, conversationId } = friend;
-    const friendExist = await FriendDb.getFriend(conversationId);
+  static archiveBlockFriend = async(friendData) => {
+    const { userId, type, conversationId } = friendData;
+    
+    const friend = await FriendDb.getFriend(conversationId);
 
     // If the friend doesn't exist, throw an error
-    validateFriendExist(friendExist);
+    isFriendExist(friend);
     const statusField = type === "archived" ? "archival_status" : "block_status";
 
     // Determine new status for friend1 or friend2 based on the current status
-    const newStatus = userId === friendExist.dataValues.friend1_id ? getNewStatus("FRIEND1", "FRIEND2", friendExist[ statusField ]) : getNewStatus("FRIEND2", "FRIEND1", friendExist[ statusField ]);
+    const newStatus = userId === friend.dataValues.friend1_id ? getNewStatus("FRIEND1", "FRIEND2", friend[ statusField ]) : getNewStatus("FRIEND2", "FRIEND1", friend[ statusField ]);
 
     // Do not allow the user to archive or block before the balance_amount is 0
-    if (parseFloat(friendExist.dataValues.balance_amount) !== 0) {
+    if (parseFloat(friend.dataValues.balance_amount) !== 0) {
       throw new ErrorHandler(400, "Settle up before this action!");
     }
 
@@ -206,7 +231,10 @@ class FriendService {
       { [ statusField ]: newStatus },
       conversationId
     );
-
+    
+    const log = auditLogFormat("UPDATE", userId, "friends", conversationId, { "oldData": friend.dataValues, "newData": friendUpdate[ 1 ][ 0 ].dataValues });
+    
+    AuditLogService.createLog(log);
     return friendUpdate;
   };
 
@@ -223,16 +251,20 @@ class FriendService {
     const { "conversation_id": conversationId } = messageData;
 
     // Check if the conversation exists
-    const friendExist = await FriendDb.getFriend(conversationId);
+    const friend = await FriendDb.getFriend(conversationId);
 
-    validateFriendExist(friendExist);
+    isFriendExist(friend);
 
     // Ensure that the conversation status allows messaging
-    if (friendExist.dataValues.status === "REJECTED") {
+    if (friend.dataValues.status === "REJECTED") {
       throw new ErrorHandler(400, "Not allowed to send message");
     }
 
     const message = await FriendDb.addMessage(messageData);
+
+    const log = auditLogFormat("INSERT", messageData.sender_id, "friends_messages", message.message_id, { "newData": message.dataValues });
+
+    AuditLogService.createLog(log);
 
     return message;
   };
@@ -248,14 +280,14 @@ class FriendService {
    *
    * @returns {Promise<Array<Object>>} - An array of messages for the conversation.
    */
-  static getMessages = async(conversationId, page, pageSize) => {
+  static getMessages = async(conversationId, timestamp, pageSize) => {
     // Check if the conversation exists
-    const friendExist = await FriendDb.getFriend(conversationId);
+    const friend = await FriendDb.getFriend(conversationId);
 
-    validateFriendExist(friendExist);
+    isFriendExist(friend);
 
     // Ensure that the conversation status allows messaging
-    if (friendExist.dataValues.status === "REJECTED") {
+    if (friend.dataValues.status === "REJECTED") {
       throw new ErrorHandler(
         403,
         "You are not allowed to message in this chat."
@@ -264,7 +296,7 @@ class FriendService {
       
     const messages = await FriendDb.getMessages(
       conversationId,
-      page,
+      timestamp,
       pageSize
     );
 
@@ -288,25 +320,26 @@ class FriendService {
    *
    * @returns {Promise<Object>} - Returns the saved expense object.
    */
-  static addExpense = async(expenseData, conversationId) => {
-    const friendExist = await FriendDb.getFriend(conversationId);
+  static addExpense = async(expenseData, userId, conversationId) => {
+    const friend = await FriendDb.getFriend(conversationId);
+    const friendWithUser = await FriendDb.getFriendWithUsers(conversationId);
 
-    validateFriendExist(friendExist);
+    isFriendExist(friend);
     Object.assign(expenseData, { "conversation_id": conversationId });
 
     // Validate that the conversation allows expenses
-    validateConversationPermissions(friendExist);
+    validateConversationPermissions(friend);
 
     const transaction = await sequelize.transaction();
 
     try {
       // Calculate debtor amount for the expense
-      const debtorAmount = calculateDebtorAmount(expenseData);
+      const debtorAmount = calculateDebtorAmount(userId, expenseData);
 
       Object.assign(expenseData, { "debtor_amount": debtorAmount });
 
       // Current balance for the friend relationship
-      const currentBalance = parseFloat(friendExist.balance_amount);
+      const currentBalance = parseFloat(friend.balance_amount);
 
       // Process settlement expenses
       if (expenseData.split_type === "SETTLEMENT") {
@@ -318,8 +351,8 @@ class FriendService {
         Object.assign(expenseData, { "expense_name": "Settlement" });
 
         // Determine payer and debtor based on balance direction
-        Object.assign(expenseData, { "payer_id": currentBalance > 0 ? friendExist.friend2_id : friendExist.friend1_id });
-        Object.assign(expenseData, { "debtor_id": currentBalance > 0 ? friendExist.friend1_id : friendExist.friend2_id });
+        Object.assign(expenseData, { "payer_id": currentBalance > 0 ? friend.friend2_id : friend.friend1_id });
+        Object.assign(expenseData, { "debtor_id": currentBalance > 0 ? friend.friend1_id : friend.friend2_id });
       }
 
       // Prevent self-expenses
@@ -329,7 +362,7 @@ class FriendService {
 
       // Verify that the payer is part of the conversation
       if (
-        expenseData.payer_id !== friendExist.friend1_id && expenseData.payer_id !== friendExist.friend2_id
+        expenseData.payer_id !== friend.friend1_id && expenseData.payer_id !== friend.friend2_id
       ) {
         throw new ErrorHandler(
           403,
@@ -337,24 +370,52 @@ class FriendService {
         );
       }
 
+      const logs = [];
+
       const expense = await FriendDb.addExpense(expenseData, transaction);
+
+      logs.push(auditLogFormat("INSERT", userId, "friends_expenses", expense.friend_expense_id, { "newData": expense.dataValues }));
 
       // Calculate the new balance based on the expense details
       const balanceAmount = calculateNewBalance(
         currentBalance,
         debtorAmount,
         expenseData.payer_id,
-        friendExist,
+        friend,
         expenseData.split_type
       );
 
       // Update balance between friends
-      await FriendDb.updateFriends(
+      const updatedFriends = await FriendDb.updateFriends(
         { "balance_amount": balanceAmount },
         conversationId,
         transaction
       );
+
+      logs.push(auditLogFormat("UPDATE", userId, "friends", updatedFriends[ 1 ][ 0 ].conversation_id, { "oldData": updatedFriends[ 1 ][ 0 ]._previousDataValues, "newData": updatedFriends[ 1 ][ 0 ].dataValues }));
+
+      const participantDetails = [
+        friendWithUser.dataValues.friend1.dataValues,
+        friendWithUser.dataValues.friend2.dataValues
+      ];
+      
+      // Send WhatsApp messages
+      const responses = await sendWhatsAppTemplateMessage(participantDetails, expense);
+
+      if (responses.error) {
+        responses.forEach((response) => {
+          logger.log({
+            "level": "error",
+            "message": JSON.stringify({
+              "statusCode": response.statusCode,
+              "message": response.error.message
+            })
+          });
+        });
+      }
+
       await transaction.commit();
+      AuditLogService.createLog(logs, true);
 
       return expense;
     } catch (error) {
@@ -369,18 +430,18 @@ class FriendService {
    * Retrieves all expenses associated with a conversation.
    *
    * @param {UUID} conversationId - The ID of the conversation.
-   * @param {number} page - The current page of expenses to retrieve.
+   * @param {number} timestamp - The current timestamp.
    * @param {number} pageSize - The number of expenses per page.
    * @param {boolean} fetchAll - Flag indicating whether to fetch all expenses.
    * @returns {Promise<Array<Object>>} - Returns an array of expense objects.
    */
-  static getExpenses = async(conversationId, page, pageSize, fetchAll) => {
-    const friendExist = await FriendDb.getFriend(conversationId);
+  static getExpenses = async(conversationId, timestamp, pageSize, fetchAll) => {
+    const friend = await FriendDb.getFriend(conversationId);
 
-    validateFriendExist(friendExist);
+    isFriendExist(friend);
 
     // Ensure that you are allowed to view the expense
-    if (friendExist.status === "REJECTED") {
+    if (friend.status === "REJECTED") {
       throw new ErrorHandler(
         403,
         "You are not allowed to view this conversation."
@@ -389,7 +450,7 @@ class FriendService {
 
     const expenses = await FriendDb.getExpenses(
       conversationId,
-      page,
+      timestamp,
       pageSize,
       fetchAll
     );
@@ -413,17 +474,17 @@ class FriendService {
    *
    * @returns {Promise<Object>} - Returns the updated expense object.
    */
-  static updateExpense = async(updatedExpenseData, conversationId) => {
-    const friendExist = await FriendDb.getFriend(conversationId);
+  static updateExpense = async(updatedExpenseData, conversationId, userId) => {
+    const friend = await FriendDb.getFriend(conversationId);
 
-    validateFriendExist(friendExist);
+    isFriendExist(friend);
   
     const existingExpense = await FriendDb.getExpense(updatedExpenseData.friend_expense_id);
 
     validateExistingExpense(existingExpense);
   
-    validateConversationPermissions(friendExist);
-    validateUpdateParticipants(updatedExpenseData, friendExist);
+    validateConversationPermissions(friend);
+    validateUpdateParticipants(updatedExpenseData, friend);
   
     const balanceAffectingFields = [
       "total_amount",
@@ -438,16 +499,16 @@ class FriendService {
     const requiresBalanceUpdate = isBalanceUpdateRequired(balanceAffectingFields, updatedExpenseData);
   
     if (!requiresBalanceUpdate) {
-      return this.handleNonBalanceUpdate(updatedExpenseData);
+      return await this.handleNonBalanceUpdate(updatedExpenseData, userId);
     }
   
-    return this.handleBalanceUpdate(updatedExpenseData, friendExist, existingExpense);
+    return await this.handleBalanceUpdate(updatedExpenseData, friend, existingExpense, userId);
   };
 
   /**
    * Handles non-balance updates.
    */
-  static handleNonBalanceUpdate = async(updatedExpenseData) => {
+  static handleNonBalanceUpdate = async(updatedExpenseData, userId) => {
     const { affectedRows, updatedExpense } = await FriendDb.updateExpense(
       updatedExpenseData,
       updatedExpenseData.friend_expense_id
@@ -456,6 +517,7 @@ class FriendService {
     if (affectedRows === 0) {
       throw new ErrorHandler(400, "Failed to update expense");
     }
+    AuditLogService.createLog(auditLogFormat("UPDATE", userId, "friends_expenses", updatedExpense.friend_expense_id, { "oldData": updatedExpense._previousDataValues, "newData": updatedExpense.dataValues }));
 
     updatedExpense.dataValues.payer = formatPersonName(updatedExpense.payer);
     return updatedExpense;
@@ -464,15 +526,15 @@ class FriendService {
   /**
    * Handles balance updates with a transaction.
    */
-  static handleBalanceUpdate = async(updatedExpenseData, friendExist, existingExpense) => {
+  static handleBalanceUpdate = async(updatedExpenseData, friend, existingExpense, userId) => {
     const transaction = await sequelize.transaction();
 
     try {
-      const debtorAmount = calculateDebtorAmount(updatedExpenseData, existingExpense);
+      const debtorAmount = calculateDebtorAmount(userId, updatedExpenseData, existingExpense);
 
       Object.assign(updatedExpenseData, { "debtor_amount": debtorAmount });
 
-      const currentBalance = parseFloat(friendExist.balance_amount);
+      const currentBalance = parseFloat(friend.balance_amount);
 
       validateSettlement(updatedExpenseData, currentBalance, debtorAmount);
 
@@ -480,7 +542,7 @@ class FriendService {
         currentBalance,
         debtorAmount,
         updatedExpenseData.payer_id || existingExpense.payer_id,
-        friendExist,
+        friend,
         updatedExpenseData.split_type || existingExpense.split_type,
         existingExpense,
         true
@@ -491,18 +553,24 @@ class FriendService {
         updatedExpenseData.friend_expense_id,
         transaction
       );
+      
+      const logs = [];
 
       if (affectedRows === 0) {
         throw new ErrorHandler(400, "Failed to update expense");
       }
+      
+      logs.push(auditLogFormat("UPDATE", userId, "friends_expenses", updatedExpenseData.friend_expense_id, { "oldData": existingExpense.dataValues, "newData": updatedExpense.dataValues }));
 
-      await FriendDb.updateFriends(
+      const updatedFriends = await FriendDb.updateFriends(
         { "balance_amount": newBalance },
-        friendExist.conversation_id,
+        friend.conversation_id,
         transaction
       );
 
+      logs.push(auditLogFormat("UPDATE", userId, "friends", updatedFriends[ 1 ][ 0 ].conversation_id, { "oldData": friend.dataValues, "newData": updatedFriends[ 1 ][ 0 ].dataValues }));
       await transaction.commit();
+      AuditLogService.createLog(logs, true);
 
       updatedExpense.dataValues.payer = formatPersonName(updatedExpense.payer);
       return updatedExpense;
@@ -522,29 +590,32 @@ class FriendService {
    *
    * @returns {Promise<Object>} - Returns a success message upon deletion.
    */
-  static deleteExpense = async(conversationId, friendExpenseId) => {
-    const friendExist = await FriendDb.getFriend(conversationId);
+  static deleteExpense = async(conversationId, friendExpenseId, userId) => {
+    const friend = await FriendDb.getFriend(conversationId);
 
-    validateFriendExist(friendExist);
+    isFriendExist(friend);
 
     const existingExpense = await FriendDb.getExpense(friendExpenseId);
 
     validateExistingExpense(existingExpense);
 
     // Verify that the expense belongs to the current conversation
-    if (friendExist.conversationId !== existingExpense.conversation_id) {
+    if (friend.conversation_id !== existingExpense.conversation_id) {
       throw new ErrorHandler(403, "You are not allowed to delete this expense");
     }
 
     const transaction = await sequelize.transaction();
+    const logs = [];
 
     try {
       // Update the is_deleted field
-      await FriendDb.updateExpense(
+      const { updatedExpense } = await FriendDb.updateExpense(
         { "is_deleted": 2 },
         friendExpenseId,
         transaction
       );
+
+      logs.push(auditLogFormat("UPDATE", userId, "friends_expenses", updatedExpense.friend_expense_id, { "oldData": existingExpense.dataValues, "newData": updatedExpense.dataValues }));
 
       // Delete the expense
       const { affectedRows } = await FriendDb.deleteExpense(
@@ -556,15 +627,20 @@ class FriendService {
         throw new ErrorHandler(400, "Failed to delete expense");
       }
 
+      logs.push(auditLogFormat("DELETE", userId, "friends_expenses", updatedExpense.friend_expense_id, { "oldData": updatedExpense.dataValues }));
+
       // Update the balance in the friends table
-      await FriendDb.updateFriends(
+      const updatedFriends = await FriendDb.updateFriends(
         {
           "balance_amount":
-            existingExpense.payer_id === friendExist.friend1_id ? parseFloat(friendExist.balance_amount) - parseFloat(existingExpense.debtor_amount) : parseFloat(friendExist.balance_amount) + parseFloat(existingExpense.debtor_amount)
+            existingExpense.payer_id === friend.friend1_id ? parseFloat(friend.balance_amount) - parseFloat(existingExpense.debtor_amount) : parseFloat(friend.balance_amount) + parseFloat(existingExpense.debtor_amount)
         },
         conversationId,
         transaction
       );
+
+      logs.push(auditLogFormat("UPDATE", userId, "friends", updatedFriends[ 1 ][ 0 ].conversation_id, { "oldData": friend.dataValues, "newData": updatedFriends[ 1 ][ 0 ].dataValues }));
+      AuditLogService.createLog(logs, true);
       // Commit the transaction
       await transaction.commit();
       return { "message": "Expense deleted successfully" };
@@ -578,37 +654,128 @@ class FriendService {
    * Service to fetch both expenses and messages together
    *
    * Fetches both expenses and messages for a conversation, sorted by creation time.
-   * Supports pagination.
+   * Supports pagination and dynamically adjusts page numbers for messages and expenses
+   * once the current batch is exhausted.
    *
    * @param {UUID} conversationId - The ID of the conversation.
-   * @param {number} [page=1] - The page number to retrieve (default: 1).
+   * @param {number} [timestamp] - The timestamp.
    * @param {number} [pageSize=20] - The number of items per page (default: 20).
    *
    * @returns {Promise<Array<Object>>} - Returns an array of expenses and messages.
    */
-  static getBoth = async(conversationId, page = 1, pageSize = 20) => {
-    const totalMessages = await FriendDb.countMessages(conversationId);
-    const totalExpenses = await FriendDb.countExpenses(conversationId);
-    const totalItems = totalMessages + totalExpenses;
+  static getBoth = async(conversationId, timestamp, pageSize = 20) => {
+    let timeStamp = timestamp;
+    const results = [];
+    const [ messages, expenses ] = await Promise.all([
+      this.getMessages(conversationId, timeStamp, pageSize),
+      this.getExpenses(conversationId, timeStamp, pageSize)
+    ]);
+    
+    while (results.length < pageSize) {
+      
+      // Break if no more data to fetch
+      if (!messages.length && !expenses.length) {
+        break;
+      }
+  
+      // Merge messages and expenses, and update the timestamp
+      const nextItem = this.getNextItem(messages, expenses);
 
-    // Calculate offset for pagination
-    const offset = (page - 1) * pageSize;
-
-    // Return an empty array if the offset exceeds total items
-    if (offset >= totalItems) {
-      return [];
+      results.push(nextItem);
+      
+      // Update timestamp to the createdAt of the next item added
+      timeStamp = nextItem.createdAt;
     }
-
-    const messages = await this.getMessages(conversationId, 1, pageSize * 2);
-    const expenses = await this.getExpenses(conversationId, 1, pageSize * 2);
-
-    // Combine and sort the results by creation time
-    const messagesAndExpenses = [ ...messages, ...expenses ];
-
-    messagesAndExpenses.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-
-    // Return the paginated results
-    return messagesAndExpenses.slice(offset, offset + pageSize);
+  
+    return results;
+  };
+  
+  // Helper function to merge and pick the next item
+  static getNextItem = (messages, expenses) => {
+    if (messages.length && (!expenses.length || messages[ 0 ].createdAt >= expenses[ 0 ].createdAt)) {
+      return messages.shift();
+    }
+    return expenses.shift();
+  };
+  
+  static addBulkExpenses = async(conversationId, userId, req) => {
+    const friend = await FriendDb.getFriend(conversationId);
+    isFriendExist(friend);
+    validateConversationPermissions(friend);
+    let validRows = [];
+    const rows = await fileData(req);
+    const tableName = req.body.tableName;
+    let processedRows;
+    const errorsOccured = [];
+    if (rows) {
+      // Use Promise.all to wait for all the promises to resolve
+      processedRows = await Promise.all(
+        rows.map(async(row, index) => {
+          const payer = await UserDb.getUserByEmail(row[ "Payer Email ID" ].trim());
+          const debtor = await UserDb.getUserByEmail(row[ "Debtor Email ID" ].trim());
+          const processedRow = {
+            "expense_name": row.Name.trim(),
+            "conversation_id": conversationId.trim(),
+            "total_amount": row.Amount.trim(),
+            "split_type": row[ "Split Type" ].trim(),
+            "payer_id": payer.user_id,
+            "debtor_id": debtor.user_id,
+            "participant1_share": row[ "Payer Share" ].trim(),
+            "participant2_share": row[ "Debtor Share" ].trim(),
+            "debtor_share": row[ "Debtor Share" ].trim()
+          };
+          let debtorAmount;
+          try {
+            debtorAmount = calculateDebtorAmount(processedRow);
+          } catch (error) {
+            errorsOccured.push({
+              "row": index + 1,
+              "errors": error.message
+            });
+          }
+          Object.assign(processedRow, { "debtor_amount": debtorAmount });
+          // Prevent self-expenses
+          if (processedRow.payer_id === processedRow.debtor_id) {
+            errorsOccured.push({
+              "row": index + 1,
+              "errors": "You cannot add an expense with yourself"
+            });
+          }
+          // Verify that the payer is part of the conversation
+          if (
+            processedRow.payer_id !== friend.friend1_id && processedRow.payer_id !== friend.friend2_id
+          ) {
+            errorsOccured.push({
+              "row": index + 1,
+              "errors": "You are not allowed to add expense in this chat."
+            });
+          }
+          return processedRow;
+        })
+      );
+      if (errorsOccured.length) {
+        throw new ErrorHandler(400, errorsOccured);
+      }
+      validRows = await validateBulkData(processedRows, tableName);
+    }
+    let expenses;
+    if (validRows.length === rows.length) {
+      const transaction = await sequelize.transaction();
+      try {
+        expenses = await FriendDb.bulkAddExpenses(validRows, transaction);
+        expenses.forEach((expense) => {
+          let balanceAmount = parseFloat(friend.balance_amount);
+          balanceAmount += (expense.payer_id === friend.friend1_id) ? parseFloat(expense.debtor_amount) : -parseFloat(expense.debtor_amount);
+          Object.assign(friend, { "balance_amount": balanceAmount });
+        });
+        await friend.save({ transaction });
+        await transaction.commit();
+      } catch (error) {
+        await transaction.rollback();
+        throw error;
+      }
+    }
+    return expenses;
   };
 }
 

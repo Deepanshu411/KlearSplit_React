@@ -4,11 +4,13 @@ import passport from "../middlewares/googleStrategy.js";
 import { login, logout, refreshToken } from "./authController.js";
 import { authenticateToken } from "../middlewares/auth.js";
 import logger from "../utils/logger.js";
+import { validateBody } from "./../middlewares/validationMiddleware.js";
+import { loginSchema } from "./authValidations.js";
 
 const authRouter = Router();
 
 // Route for authenticating the user with email and password
-authRouter.post("/login", login);
+authRouter.post("/login", validateBody(loginSchema), login);
 
 // Route for authenticating user with Google
 authRouter.get(
@@ -30,12 +32,12 @@ authRouter.get("/google/callback", (req, res, next) => {
         "message": err.message
       });
       return res.redirect(
-        `http://localhost:5174/login?error=${encodeURIComponent(err.message)}`
+        `http://localhost:5173/login?error=${encodeURIComponent(err.message)}`
       );
     }
 
     if (!user) {
-      return res.redirect("http://localhost:5174/login?error=User not found");
+      return res.redirect("http://localhost:5173/login?error=User not found");
     }
 
     // If authentication is successful
@@ -56,7 +58,7 @@ authRouter.get("/google/callback", (req, res, next) => {
         "sameSite": "strict",
         "maxAge": 10 * 24 * 60 * 60 * 1000
       })
-      .redirect(`http://localhost:5173/dashboard?id=${userData.user.user_id}`);
+      .redirect(`http://localhost:5173/dashboard`);
   })(req, res, next);
 });
 

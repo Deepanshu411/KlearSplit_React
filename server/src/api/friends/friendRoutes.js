@@ -3,14 +3,51 @@ import FriendController from "./friendController.js";
 import { authenticateToken } from "../middlewares/auth.js";
 import {
   validateExpense,
-  validateArchiveBlockFriend,
-  validateEmail,
-  validateFriendRequest,
-  validateGetFriends,
-  validatePagination,
-  validateParams
+  validateParams,
+  validateBody,
+  validateQuery
 } from "../middlewares/validationMiddleware.js";
+import * as friendsSchema from "./friendValidations.js";
 import uploadMiddleware from "../middlewares/uploadMiddleware.js";
+import { emailSchema } from "../users/userValidations.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { ErrorHandler } from "../middlewares/errorHandler.js";
+
+const __dirname = path.resolve();
+
+const ensureDirectoryExists = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { "recursive": true });
+  }
+};
+
+const storage = multer.diskStorage({
+  "destination": function(req, file, cb) {
+    const uploadPath = path.join(__dirname, "/uploads/csv");
+
+    // Ensure the directory exists before storing the file
+    ensureDirectoryExists(uploadPath);
+    cb(null, uploadPath);
+  },
+  "filename": function(req, file, cb) {
+    const uniqueSuffix = `${Date.now() }-${ Math.round(Math.random() * 1e9)}`;
+
+    cb(null, `${file.fieldname }-${ uniqueSuffix}`);
+  }
+});
+
+// file filter function to only allow CSV files.
+const filterFile = (req, file, cb) => {
+  const extName = path.extname(file.originalname).toLocaleLowerCase();
+
+  if (extName !== ".csv") {
+    return cb(new ErrorHandler("Only csv files are allowed", 400), false);
+  }
+  return cb(null, true);
+};
+const upload = multer({ "storage": storage, "fileFilter": filterFile });
 
 const friendRouter = Router();
 
@@ -24,7 +61,7 @@ const friendRouter = Router();
 friendRouter.post(
   "/addfriend",
   authenticateToken,
-  validateEmail,
+  validateBody(emailSchema),
   FriendController.addFriend
 );
 
@@ -34,7 +71,7 @@ friendRouter.post(
 friendRouter.get(
   "/getallfriends",
   authenticateToken,
-  validateGetFriends,
+  validateQuery(friendsSchema.getFriendsValidation),
   FriendController.getAllFriends
 );
 
@@ -44,8 +81,8 @@ friendRouter.get(
 friendRouter.patch(
   "/acceptrejectfriend/:conversation_id",
   authenticateToken,
-  validateParams,
-  validateFriendRequest,
+  validateParams(friendsSchema.uuidParamValidation),
+  validateBody(friendsSchema.acceptRejectFriendRequestValidation),
   FriendController.acceptRejectFriendRequest
 );
 
@@ -53,7 +90,7 @@ friendRouter.patch(
 friendRouter.delete(
   "/withdrawfriendrequest/:conversation_id",
   authenticateToken,
-  validateParams,
+  validateParams(friendsSchema.uuidParamValidation),
   FriendController.withdrawFriendRequest
 );
 
@@ -63,8 +100,8 @@ friendRouter.delete(
 friendRouter.patch(
   "/archiveblockfriend/:conversation_id",
   authenticateToken,
-  validateParams,
-  validateArchiveBlockFriend,
+  validateParams(friendsSchema.uuidParamValidation),
+  validateBody(friendsSchema.archiveBlockFriendValidation),
   FriendController.archiveBlockFriend
 );
 
@@ -74,8 +111,8 @@ friendRouter.patch(
 friendRouter.get(
   "/getmessages/:conversation_id",
   authenticateToken,
-  validateParams,
-  validatePagination,
+  validateParams(friendsSchema.uuidParamValidation),
+  validateQuery(friendsSchema.paginationValidation),
   FriendController.getMessages
 );
 
@@ -87,7 +124,7 @@ friendRouter.post(
   "/addexpense/:conversation_id",
   authenticateToken,
   uploadMiddleware("receipts", "receipt"),
-  validateParams,
+  validateParams(friendsSchema.uuidParamValidation),
   validateExpense,
   FriendController.addExpense
 );
@@ -96,8 +133,8 @@ friendRouter.post(
 friendRouter.get(
   "/getexpenses/:conversation_id",
   authenticateToken,
-  validateParams,
-  validatePagination,
+  validateParams(friendsSchema.uuidParamValidation),
+  validateQuery(friendsSchema.paginationValidation),
   FriendController.getExpenses
 );
 
@@ -106,7 +143,7 @@ friendRouter.patch(
   "/updateexpense/:conversation_id",
   authenticateToken,
   uploadMiddleware("receipts", "receipt"),
-  validateParams,
+  validateParams(friendsSchema.uuidParamValidation),
   validateExpense,
   FriendController.updateExpense
 );
@@ -115,7 +152,7 @@ friendRouter.patch(
 friendRouter.delete(
   "/deleteexpense/:conversation_id",
   authenticateToken,
-  validateParams,
+  validateParams(friendsSchema.uuidParamValidation),
   FriendController.deleteExpense
 );
 
@@ -123,9 +160,11 @@ friendRouter.delete(
 friendRouter.get(
   "/getboth/:conversation_id",
   authenticateToken,
-  validateParams,
-  validatePagination,
+  validateParams(friendsSchema.uuidParamValidation),
+  validateQuery(friendsSchema.paginationValidation),
   FriendController.getBoth
 );
+
+friendRouter.post("/expenses-bulkcreate/:conversation_id", authenticateToken, upload.single("file"), validateParams(friendsSchema.uuidParamValidation), FriendController.addBulkExpenses);
 
 export default friendRouter;

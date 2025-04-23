@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
@@ -11,15 +10,23 @@ import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { logout } from '../../store/authSlice';
+import API_URLS from '../../constants/apis/urls';
+import axiosInstance from '../../services/axiosInterceptor';
+import { RootState } from '../../store';
+import { useEffect, useState } from 'react';
 
-const pages = ["Dashboard", "Friends", "Groups"];
-const settings = ['Profile', 'Logout'];
+const pages = ["Dashboard", 'Friends', 'Groups'];
 
 function ResponsiveAppBar() {
-  const navigate = useNavigate();
   const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
+  const [active, setActive] = useState("Dashboard");
+  const location = useLocation();
+  const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.auth.user);
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNav(event.currentTarget);
@@ -28,15 +35,29 @@ function ResponsiveAppBar() {
     setAnchorElUser(event.currentTarget);
   };
 
-  const handleCloseNavMenu = (page: string) => {
-    navigate(`/${page.toLowerCase()}`);
+  const handleCloseNavMenu = () => {
     setAnchorElNav(null);
   };
 
-  const handleCloseUserMenu = (setting: string) => {
-    navigate(`/${setting.toLowerCase()}`);
+  const handleCloseUserMenu = () => {
     setAnchorElUser(null);
   };
+
+  const handleLogout = async() => {
+    const res = await axiosInstance.get(API_URLS.auth.logout);
+    if(!res) {
+      return;
+    }
+    dispatch(logout());
+  }
+
+  useEffect(() => {
+    const path = location.pathname.split('/')[1]; // e.g., 'dashboard', 'friends'
+    const capitalized = path.charAt(0).toUpperCase() + path.slice(1);
+    if (pages.includes(capitalized)) {
+      setActive(capitalized);
+    }
+  }, [location.pathname]);
 
   return (
     <>
@@ -49,8 +70,8 @@ function ResponsiveAppBar() {
           <Typography
             variant="h6"
             noWrap
-            component="a"
-            href="/dashboard"
+            component={Link}
+            to="/dashboard"
             sx={{
               mr: 2,
               display: { xs: 'none', md: 'flex' },
@@ -92,7 +113,8 @@ function ResponsiveAppBar() {
               sx={{ display: { xs: 'block', md: 'none' } }}
             >
               {pages.map((page) => (
-                <MenuItem key={page} onClick={() => handleCloseNavMenu(page)}>
+                <MenuItem key={page} component={Link}
+                to={'/' + page.toLowerCase()} onClick={handleCloseNavMenu}>
                   <Typography sx={{ textAlign: 'center' }}>{page}</Typography>
                 </MenuItem>
               ))}
@@ -101,8 +123,8 @@ function ResponsiveAppBar() {
           <Typography
             variant="h5"
             noWrap
-            component="a"
-            href="/dashboard"
+            component={Link}
+            to="/dashboard"
             sx={{
               mr: 2,
               display: { xs: 'flex', md: 'none' },
@@ -119,18 +141,32 @@ function ResponsiveAppBar() {
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
             {pages.map((page) => (
               <Button
+              onClickCapture={() => setActive(page)}
+              variant={active === page ? 'outlined' : 'text'}
                 key={page}
-                onClick={() => handleCloseNavMenu(page)}
-                sx={{ my: 2, color: 'white', display: 'block' }}
+                component={Link}
+                to={'/' + page.toLowerCase()}
+                onClick={handleCloseNavMenu}
+                // sx={{ my: 2, color: 'white', display: 'block' }}
+                sx={{
+                  my: 2,
+                  color: 'white',
+                  display: 'block',
+                  borderColor: 'rgba(255, 255, 255, 0.7)', // white with opacity
+                  '&:hover': {
+                    borderColor: 'rgba(255, 255, 255, 1)', // stronger on hover
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)', // optional light background on hover
+                  }
+                }}
               >
                 {page}
               </Button>
             ))}
           </Box>
           <Box sx={{ flexGrow: 0 }}>
-            <Tooltip title="Open settings">
+            <Tooltip title="Profile Settings">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                <Avatar alt="Remy Sharp" src="/static/images/avatar/2.jpg" />
+                <Avatar alt="Remy Sharp" src={user!.image_url || "/profile.png"} />
               </IconButton>
             </Tooltip>
             <Menu
@@ -149,11 +185,12 @@ function ResponsiveAppBar() {
               open={Boolean(anchorElUser)}
               onClose={handleCloseUserMenu}
             >
-              {settings.map((setting) => (
-                <MenuItem key={setting} onClick={() => handleCloseUserMenu(setting)}>
-                  <Typography sx={{ textAlign: 'center' }}>{setting}</Typography>
-                </MenuItem>
-              ))}
+              <MenuItem onClick={handleCloseUserMenu}>
+                <Link to="/profile" ><Typography sx={{ textAlign: 'center' }}>Profile</Typography></Link>
+              </MenuItem>
+              <MenuItem onClick={handleCloseUserMenu}>
+                <div onClick={handleLogout} ><Typography sx={{ textAlign: 'center' }}>Logout</Typography></div>
+              </MenuItem>
             </Menu>
           </Box>
         </Toolbar>

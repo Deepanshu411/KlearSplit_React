@@ -1,0 +1,421 @@
+import "./Settlement.css";
+import { ModalDialog } from "@mui/joy";
+import {
+  Modal,
+  DialogTitle,
+  Box,
+  Avatar,
+  TextField,
+  CircularProgress,
+} from "@mui/material";
+import { useEffect, useState } from "react";
+import Button from "@mui/joy/Button";
+import isFriendsConversation from "../utils/getConversationType";
+import getFullNameAndImage from "../utils/getFullNameAndImage";
+import { useSelector } from "react-redux";
+import { RootState } from "../../../store";
+import ConfirmDialog from "../../../components/shared/ConfirmDialog";
+import { addExpense } from "../friends/services";
+import { toast } from "sonner";
+import { addSettlements } from "../groups/services";
+import createPayment from "../services/settlementService";
+
+interface SettlementProps {
+  open: boolean;
+  handleSettlementClose: () => void;
+  chat: FriendData | GroupData | null;
+  setChats: React.Dispatch<React.SetStateAction<FriendData[] | GroupData[]>>;
+  setExpenses?: React.Dispatch<React.SetStateAction<ExpenseData[]>>;
+  setGroupExpenses?: React.Dispatch<
+    React.SetStateAction<(GroupExpenseData | GroupSettlementData)[]>
+  >;
+  setCombinedView: React.Dispatch<
+    React.SetStateAction<
+      (
+        | CombinedMessage
+        | CombinedExpense
+        | CombinedGroupMessage
+        | CombinedGroupExpense
+        | CombinedGroupSettlement
+      )[]
+    >
+  >;
+  setGroupMembers?: React.Dispatch<React.SetStateAction<GroupMemberData[]>>;
+  currentMember?: GroupMemberData;
+  groupPayer?: { fullName: string; imageUrl: string; payerId: string };
+  groupDebtor?: { fullName: string; imageUrl: string; debtorId: string };
+  totalAmount?: number;
+}
+
+const isUserPayer = (chat: FriendData | null): boolean => {
+  if (!chat) return false;
+  return parseFloat(chat.balance_amount) < 0;
+};
+
+const Settlement: React.FC<SettlementProps> = ({
+  open,
+  handleSettlementClose,
+  chat,
+  setChats,
+  setExpenses,
+  setGroupExpenses,
+  setCombinedView,
+  setGroupMembers,
+  currentMember,
+  groupPayer,
+  groupDebtor,
+  totalAmount,
+}) => {
+  const user = useSelector((store: RootState) => store.auth.user);
+  const [error, setError] = useState(false);
+  const [helperText, setHelperText] = useState("");
+  const [settlementAmount, setSettlementAmount] = useState(
+    Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0"
+  );
+  const [payer, setPayer] = useState<{ fullName: string; imageUrl: string }>();
+  const [debtor, setDebtor] = useState<{
+    fullName: string;
+    imageUrl: string;
+  }>();
+  const [openConfirm, setOpenConfirm] = useState(false);
+  const [paymentLoader, setPaymentLoader] = useState(false);
+  const [paypalLoader, setPaypalLoader] = useState(false);
+
+  const handleConfirm = () => {
+    setOpenConfirm(false);
+    handleSettlementClose();
+    setSettlementAmount(
+      (isFriendsConversation(chat!)
+        ? Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2)
+        : totalAmount?.toFixed()) || "0"
+    );
+    setError(false);
+    setHelperText("");
+    setPayer(undefined);
+    setDebtor(undefined);
+  };
+
+  const handleCancel = () => {
+    setOpenConfirm(false);
+  };
+
+  const onSettlementClose = () => {
+    setOpenConfirm(true);
+  };
+  const handleSetPayer = (chat: FriendData | GroupData | null) => {
+    if (!chat) return;
+    if (isFriendsConversation(chat)) {
+      const payer = isUserPayer(chat)
+        ? getFullNameAndImage(user!)
+        : getFullNameAndImage(chat.friend);
+      const debtor = !isUserPayer(chat)
+        ? getFullNameAndImage(user!)
+        : getFullNameAndImage(chat.friend);
+      setPayer({
+        fullName: payer.fullName,
+        imageUrl: payer.imageUrl ?? "/profile.png",
+      });
+      setDebtor({
+        fullName: debtor.fullName,
+        imageUrl: debtor.imageUrl ?? "/profile.png",
+      });
+    } else {
+      if (!groupPayer || !groupDebtor) return;
+      setPayer({
+        fullName: groupPayer.fullName,
+        imageUrl: groupPayer.imageUrl ?? "/profile.png",
+      });
+      setDebtor({
+        fullName: groupDebtor.fullName,
+        imageUrl: groupDebtor.imageUrl ?? "/profile.png",
+      });
+    }
+  };
+
+  const payWithPayPal = async () => {
+    setPaypalLoader(true);
+
+    try {
+      if (isFriendsConversation(chat!)) {
+        const response = await createPayment(
+          parseFloat(settlementAmount),
+          chat.conversation_id,
+          isUserPayer(chat!) ? user?.user_id! : chat.friend.user_id!,
+          isUserPayer(chat!) ? chat.friend.user_id! : user?.user_id!,
+          "friends"
+        );
+        window.location.href = response;
+      } else {
+        const response = await createPayment(
+          parseFloat(settlementAmount),
+          chat!.group_id,
+          groupPayer?.payerId!,
+          groupDebtor?.debtorId!,
+          "groups"
+        );
+        window.location.href = response;
+      }
+    } finally {
+      setPaypalLoader(false);
+      handleSettlementClose();
+    }
+  };
+
+  const handleCashPayment = async () => {
+    setPaymentLoader(true);
+    if (isFriendsConversation(chat!)) {
+      try {
+        const newExpense = await addExpense(
+          (chat as FriendData).conversation_id,
+          { split_type: "SETTLEMENT", total_amount: settlementAmount }
+        );
+        const updatedBalanceAmount = isUserPayer(chat)
+          ? (
+              parseFloat(chat.balance_amount) + parseFloat(settlementAmount)
+            ).toFixed(2)
+          : (
+              parseFloat(chat.balance_amount) - parseFloat(settlementAmount)
+            ).toFixed(2);
+        toast.success("Amount settled successfully!");
+        if (setExpenses) {
+          setExpenses((prev) => [...prev, newExpense]);
+        }
+        setCombinedView((prev) => [
+          ...prev,
+          { ...newExpense, type: "expense" },
+        ]);
+        setChats((prev) => {
+          const friendChats = prev as FriendData[];
+          return friendChats.map((c) =>
+            c.conversation_id === chat.conversation_id
+              ? { ...c, balance_amount: updatedBalanceAmount }
+              : c
+          );
+        });
+        handleSettlementClose();
+      } finally {
+        setPaymentLoader(false);
+      }
+    } else {
+      try {
+        const newSettlement = await addSettlements(chat?.group_id!, {
+          payer_id: groupPayer?.payerId!,
+          debtor_id: groupDebtor?.debtorId!,
+          settlement_amount: parseFloat(settlementAmount),
+        });
+        const updatedBalanceAmount =
+          groupPayer?.payerId === currentMember?.group_membership_id
+            ? (
+                parseFloat(chat!.balance_amount) + parseFloat(settlementAmount)
+              ).toFixed(2)
+            : (
+                parseFloat(chat!.balance_amount) - parseFloat(settlementAmount)
+              ).toFixed(2);
+        toast.success("Amount settled successfully!");
+        const newSettlementWithPayerDebtor: GroupSettlementData = {
+          ...newSettlement,
+          payer: {
+            fullName: groupPayer?.fullName!,
+            imageUrl: groupPayer?.imageUrl,
+          },
+          debtor: {
+            fullName: groupDebtor?.fullName!,
+            imageUrl: groupDebtor?.imageUrl,
+          },
+        };
+        if (setGroupExpenses) {
+          setGroupExpenses((prev) => [...prev, newSettlementWithPayerDebtor]);
+        }
+        setCombinedView((prev) => [
+          ...prev,
+          { ...newSettlementWithPayerDebtor, type: "Settlement" },
+        ]);
+        setChats((prev) => {
+          const groupChats = prev as GroupData[];
+          return groupChats.map((c) =>
+            c.group_id === chat?.group_id
+              ? { ...c, balance_amount: updatedBalanceAmount }
+              : c
+          );
+        });
+        setGroupMembers &&
+          setGroupMembers((prev) => {
+            return prev.map((member) => {
+              return member.group_membership_id === groupPayer?.payerId
+                ? {
+                    ...member,
+                    balance_with_user: (
+                      parseFloat(member.balance_with_user) +
+                      parseFloat(settlementAmount)
+                    ).toFixed(2),
+                    total_balance: (
+                      parseFloat(member.total_balance) +
+                      parseFloat(settlementAmount)
+                    ).toFixed(2),
+                  }
+                : member.group_membership_id === groupDebtor?.debtorId
+                ? {
+                    ...member,
+                    balance_with_user: (
+                      parseFloat(member.balance_with_user) -
+                      parseFloat(settlementAmount)
+                    ).toFixed(2),
+                    total_balance: (
+                      parseFloat(member.total_balance) -
+                      parseFloat(settlementAmount)
+                    ).toFixed(2),
+                  }
+                : member;
+            });
+          });
+        handleSettlementClose();
+      } finally {
+        setPaymentLoader(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    handleSetPayer(chat);
+    setSettlementAmount(
+      isFriendsConversation(chat!)
+        ? Math.abs(parseFloat(chat?.balance_amount!)).toFixed(2) || "0"
+        : totalAmount?.toFixed(2) || "0"
+    );
+  }, [open, chat?.balance_amount, totalAmount]);
+
+  const onChange = (value: string) => {
+    setSettlementAmount(value);
+    const numericVal = parseFloat(value);
+    const maxAmount = parseFloat(chat?.balance_amount ?? "0");
+
+    if (isNaN(numericVal) || numericVal <= 0) {
+      setError(true);
+      setHelperText("Amount must be greater than 0");
+    } else if (numericVal > Math.abs(maxAmount)) {
+      setError(true);
+      setHelperText(`Amount cannot exceed ₹${Math.abs(maxAmount).toFixed(2)}`);
+    } else {
+      setError(false);
+      setHelperText("");
+    }
+  };
+
+  return (
+    <>
+      <ConfirmDialog
+        open={openConfirm}
+        title="Cancel Settlement"
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
+      <Modal open={open} onClose={() => handleSettlementClose()}>
+        <ModalDialog
+          layout="center"
+          sx={{
+            backgroundColor: "white",
+            position: "fixed",
+            top: "10",
+            // minHeight: "50%",
+            minWidth: "25%",
+            padding: 0,
+            border: "none",
+            display: "flex",
+            flexDirection: "column",
+            gap: 0,
+          }}
+        >
+          <DialogTitle
+            className="bg-[#3674B5] text-center text-white"
+            sx={{ borderRadius: "7px 7px 0px 0px" }}
+          >
+            Settle up
+          </DialogTitle>
+          <Box className="w-full self-start rounded p-3 flex flex-col gap-3">
+            <Box className="flex justify-between gap-3 px-6 items-center">
+              <Avatar
+                alt="Remy Sharp"
+                src={payer?.imageUrl}
+                sx={{ width: 60, height: 60 }}
+              />
+              <span className="arrow"></span>
+              <Avatar
+                alt="Remy Sharp"
+                src={debtor?.imageUrl}
+                sx={{ width: 60, height: 60 }}
+              />
+            </Box>
+            <Box className="flex justify-between gap-3 px-6 items-center">
+              <h5 className="text-lg text-blue-600">{payer?.fullName!}</h5>
+              <span>paid</span>
+              <h5 className="text-lg text-blue-600">{debtor?.fullName!}</h5>
+            </Box>
+            <TextField
+              label="Settlement Amount"
+              required
+              variant="outlined"
+              name="settlement_amount"
+              value={settlementAmount}
+              onChange={(e) => onChange(e.target.value.trim())}
+              fullWidth
+              error={error}
+              helperText={helperText}
+            />
+            <Box className="flex flex-col justify-center items-center p-3 gap-3">
+              <Button
+                onClick={handleCashPayment}
+                variant="soft"
+                disabled={error || settlementAmount === ""}
+              >
+                {paymentLoader ? (
+                  <div className="flex justify-center items-center gap-2">
+                    <span>Processing...</span>{" "}
+                    <span>
+                      <CircularProgress size={20} />
+                    </span>
+                  </div>
+                ) : (
+                  "Record as Cash Payment"
+                )}
+              </Button>
+              <Button
+                onClick={payWithPayPal}
+                variant="soft"
+                disabled={
+                  error ||
+                  settlementAmount === "" ||
+                  (isFriendsConversation(chat!) && !isUserPayer(chat)) ||
+                  (!isFriendsConversation(chat!) &&
+                    groupPayer?.payerId !== currentMember?.group_membership_id)
+                }
+              >
+                {paypalLoader ? (
+                  <div className="flex justify-center items-center gap-2">
+                    <span>Processing...</span>{" "}
+                    <span>
+                      <CircularProgress size={20} />
+                    </span>
+                  </div>
+                ) : (
+                  "Pay with PayPal"
+                )}
+              </Button>
+            </Box>
+            <Box className="flex justify-end items-center p-3 gap-3">
+              <Button
+                onClick={onSettlementClose}
+                variant="plain"
+                color="danger"
+              >
+                Close
+              </Button>
+            </Box>
+          </Box>
+        </ModalDialog>
+      </Modal>
+    </>
+  );
+};
+
+export default Settlement;
