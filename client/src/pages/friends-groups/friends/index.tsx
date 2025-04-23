@@ -168,24 +168,21 @@ const FriendsPage = () => {
     friend: FriendData,
     status: "ACCEPTED" | "REJECTED"
   ) => {
-    try {
-      await acceptRejectFriendRequest(
-        friend.conversation_id,
-        status
-      );
-      setRequests((prev) =>
-        prev.filter(
-          (request) => request.conversation_id !== friend.conversation_id
-        )
-      );
-      if (status === "ACCEPTED") {
-        setFriends((prev) => [...prev, { ...friend, isRequest: false }]);
-        setSelected("Friends");
-      }
-      toast.success(`Request ${status.toLowerCase()} successfully`);
-    } catch (error) {
-      toast.error("Failed to update request");
+    const res = await acceptRejectFriendRequest(
+      friend.conversation_id,
+      status
+    );
+    if (!res) return;
+    setRequests((prev) =>
+      prev.filter(
+        (request) => request.conversation_id !== friend.conversation_id
+      )
+    );
+    if (status === "ACCEPTED") {
+      setFriends((prev) => [...prev, { ...friend, isRequest: false }]);
+      setSelected("Friends");
     }
+    toast.success(`Request ${status.toLowerCase()} successfully`);
   };
 
   const clearSelectedFriend = () => {
@@ -201,15 +198,16 @@ const FriendsPage = () => {
 
   useEffect(() => {
     const fetchFriends = async () => {
-      try {
-        const friendsList = await getFriends({ status: "ACCEPTED" });
-        const requestsList = await getFriends({ status: "PENDING" });
-        setFriends(friendsList);
-        setRequests(requestsList);
-      } catch (error) {
-        toast.error("Failed to fetch friends");
-      }
+      const friendsList = await getFriends({ status: "ACCEPTED" });
+      if (!friendsList) return;
+      setFriends(friendsList);
     };
+    const fetchRequests = async () => {
+      const requestsList = await getFriends({ status: "PENDING" });
+      if (!requestsList) return;
+      setRequests(requestsList);
+    };
+    fetchRequests();
     fetchFriends();
   }, []);
 
@@ -223,6 +221,7 @@ const FriendsPage = () => {
       >
         <SearchBar
           onSearch={handleSearch}
+          chat={selectedFriend!}
           chats={filteredFriends}
           setChats={(newChats) => setFriends(newChats as FriendData[])}
         />

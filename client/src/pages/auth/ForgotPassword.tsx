@@ -16,18 +16,23 @@ const ForgotPassword = () => {
     // Validate input fields
     const validate = (name: string, value: string) => {
         let error = "";
-        if (name === "email") {
-            if (!value) {
-                error = "Email is required";
-            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                error = "Invalid email format";
+        switch (name) {
+            case "email": {
+                if (!value) {
+                    error = "Email is required";
+                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    error = "Invalid email format";
+                }
             }
-        } else if (name === "otp") {
-            if (!value) {
-                error = "OTP is required";
-            } else if (!/^\d{6}$/.test(value)) {
-                error = "OTP must be a 6-digit number";
+            break;
+            case "otp": {
+                if (!value) {
+                    error = "OTP is required";
+                } else if (!/^\d{6}$/.test(value)) {
+                    error = "OTP must be a 6-digit number";
+                }
             }
+            break;
         }
         setErrors((prev) => ({ ...prev, [name]: error }));
     };
@@ -47,25 +52,19 @@ const ForgotPassword = () => {
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         if (errors.email) return;
-        try {
-            await authService.verifyForgotPassword(email);
-            toast.success("OTP sent to your email");
-            setStep(2);
-        } catch (error) {
-            toast.error("Failed to send OTP");
-        }
+        const res = await authService.verifyForgotPassword(email);
+        if (!res) return;
+        toast.success("OTP sent to your email");
+        setStep(2);
     };
 
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         if (errors.otp) return;
-        try {
-            await authService.forgotPassword(email, otp);
-            toast.success("OTP verified");
-            navigate("/login");
-        } catch (error) {
-            toast.error("Invalid OTP");
-        }
+        const res = await authService.forgotPassword(email, otp);
+        if (!res) return;
+        toast.success("OTP verified");
+        navigate("/login");
     };
 
     return (

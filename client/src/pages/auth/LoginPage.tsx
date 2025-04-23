@@ -1,6 +1,5 @@
 import { Google, Lock, Person, Visibility, VisibilityOff } from "@mui/icons-material";
 import { Stack, TextField, Button, Typography, InputAdornment, IconButton } from "@mui/material";
-import { AxiosError } from "axios";
 import React, { useEffect, useState, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
@@ -45,14 +44,11 @@ const LoginPage: React.FC = () => {
   // Handle login
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const res = await authService.onLogin(loginInfo);
-      dispatch(login(res.data));
-      navigate("/dashboard");
-      toast.success(res.message);
-    } catch (error: AxiosError | any) {
-      toast.error(error.response?.data.message || error.message);
-    }
+    const res = await authService.onLogin(loginInfo);
+    if (!res) return;
+    dispatch(login(res.data));
+    navigate("/dashboard");
+    toast.success("User logged in successfully");
   };
 
   // Toggle password visibility

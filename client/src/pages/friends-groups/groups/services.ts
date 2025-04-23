@@ -64,7 +64,8 @@ export const blockGroup = async (groupId: string, blockStatus: boolean) => {
 };
 
 export const leaveGroup = async (groupId: string) => {
-  await axiosInstance.delete(`${API_URLS.groups.leaveGroup}/${groupId}`);
+  const response = await axiosInstance.delete(`${API_URLS.groups.leaveGroup}/${groupId}`);
+  return response.data.data;
 };
 
 export const saveGroupMessages = async (message: string, groupId: string) => {

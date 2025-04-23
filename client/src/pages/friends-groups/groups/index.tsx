@@ -142,21 +142,18 @@ const GroupsPage = () => {
     group: GroupData,
     action: "ACCEPTED" | "REJECTED"
   ) => {
-    try {
-      await acceptRejectInvite(
-        group.group_id,
-        action
-      );
-      const updatedGroups = await getGroups();
-      setGroups(updatedGroups.acceptedGroups);
-      setRequests(updatedGroups.invitedGroups);
-      toast.success(
-        `Group invite ${action.toLowerCase()} successfully`
-      );
-      setSelected("Groups");
-    } catch (error) {
-      toast.error(`Failed to ${action === "ACCEPTED" ? "accept" : "reject"} group invite`);
-    }
+    const res = await acceptRejectInvite(
+      group.group_id,
+      action
+    );
+    if (!res) return;
+    const updatedGroups = await getGroups();
+    setGroups(updatedGroups.acceptedGroups);
+    setRequests(updatedGroups.invitedGroups);
+    toast.success(
+      `Group invite ${action.toLowerCase()} successfully`
+    );
+    setSelected("Groups");
   }
 
   const clearSelectedGroup = () => {
@@ -189,13 +186,10 @@ const GroupsPage = () => {
 
   useEffect(() => {
     const fetchGroups = async () => {
-      try {
-        const groupsList = await getGroups();
-        setGroups(groupsList.acceptedGroups);
-        setRequests(groupsList.invitedGroups);
-      } catch (error) {
-        toast.error("Failed to fetch groups");
-      }
+      const groupsList = await getGroups();
+      if (!groupsList) return;
+      setGroups(groupsList.acceptedGroups);
+      setRequests(groupsList.invitedGroups);
     };
     fetchGroups();
   }, []);
@@ -218,6 +212,7 @@ const GroupsPage = () => {
       >
         <SearchBar
           onSearch={handleSearch}
+          chat={selectedGroup!}
           chats={filteredGroups}
           setChats={(newChats) => setGroups(newChats as GroupData[])}
         />

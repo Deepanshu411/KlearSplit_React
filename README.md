@@ -7,8 +7,7 @@
 - [Installation](#installation)
   - [Prerequisites](#prerequisites)
   - [Cloning the Repository](#cloning-the-repository)
-  - [Backend (Node.js)](#backend-nodejs)
-  - [Frontend (Angular)](#frontend-angular)
+  - [Running the Application](#running-the-application)
 - [Environment Variables](#environment-variables)
 
 ## Technologies Used
@@ -25,6 +24,8 @@
 
 ### Frontend (Client):
 - **React.js**
+- **Axios**
+- **Cookies** for token management
 
 ## Installation
 
@@ -52,7 +53,7 @@ cd KlearSplit_React
     npm install
     ```
 
-3. Start the application:
+2. Start the application:
 
     ```bash
     npm run dev
@@ -71,11 +72,3 @@ Make sure to replace the placeholder values with your actual database credential
 Create your app password from app passwords in Google account for SMTP_PASSWORD and use your email for both SMTP_USER as well as for SMTP_MAIL.
 Create your google client credentials from google's developer console by creating new project.
 
-
-Create a `config.ts` file in the `client/src/environments` directory with the following structure:
-
-```plaintext
-export const config = {
-    encryptionSecretKey: 'your_secret_code'
-};
-```

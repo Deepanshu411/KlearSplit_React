@@ -3,13 +3,15 @@ import { RouterProvider } from 'react-router-dom'
 import { router } from "./routes/routes"
 import { Box } from '@mui/material';
 import HashLoader from "react-spinners/ClipLoader";
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { login, logout } from './store/authSlice';
 import { toast } from 'sonner';
 import getUser from './services/userService';
+import { RootState } from './store';
 
 function App() {
+  const user = useSelector((state: RootState) => state.auth.user);
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +24,7 @@ function App() {
           dispatch(login(userData));
         }
       } catch (error) {
-        toast.info('You have been logged out, please log in again!');
+        if (user) toast.info('You have been logged out, please log in again!');
         dispatch(logout());
       } finally {
         setLoading(false);

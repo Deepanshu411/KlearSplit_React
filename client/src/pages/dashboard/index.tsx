@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BarChart, PieChart } from "@mui/x-charts";
 import { getExpense, getBalanceAmounts, getCashFlowFriends, getMonthlyExpenses, getCashFlowGroups } from "./service";
-import { toast } from "sonner";
 import LoadingSkeleton from "./LoadingSkeleton";
 import NoDataMessage from "./NoDataMessage";
 
@@ -26,46 +25,45 @@ const DashboardPage: React.FC = () => {
 
   // Fetch static chart data (runs only on mount)
   useEffect(() => {
-    const fetchStaticData = async () => {
-      try {
-        const [expenseData, balanceData, cashFlowFriendsData, cashFlowGroupsData] = await Promise.all([
-          getExpense(),
-          getBalanceAmounts(),
-          getCashFlowFriends(),
-          getCashFlowGroups(),
-        ]);
-
-        setPieChartData1(expenseData[0]);
-        setPieChartData2(balanceData[0]);
-        setPieChartData3(cashFlowFriendsData[0]);
-        setPieChartData4(cashFlowGroupsData[0]);
-
-        setLoaders((prev) => ({
-          ...prev,
-          pieChart1: false,
-          pieChart2: false,
-          pieChart3: false,
-          pieChart4: false,
-        }));
-      } catch (error) {
-        toast.error("Error fetching data");
-      }
-    };
-
-    fetchStaticData();
+    const fetchExpenseData = async () => {
+      const expenseData = await getExpense();
+      if (!expenseData) return;
+      setPieChartData1(expenseData[0]);
+      setLoaders((prev) => ({ ...prev, pieChart1: false }));      
+    }
+    const fetchBalanceData = async () => {
+      const balanceData = await getBalanceAmounts();
+      if (!balanceData) return;
+      setPieChartData2(balanceData[0]);
+      setLoaders((prev) => ({ ...prev, pieChart2: false }));      
+    }
+    const fetchCashFlowFriendsData = async () => {
+      const cashFlowFriendsData = await getCashFlowFriends();
+      if (!cashFlowFriendsData) return;
+      setPieChartData3(cashFlowFriendsData[0]);
+      setLoaders((prev) => ({ ...prev, pieChart3: false }));      
+    }
+    const fetchCashFlowGroupsData = async () => {
+      const cashFlowGroupsData = await getCashFlowGroups();
+      if (!cashFlowGroupsData) return;
+      setPieChartData4(cashFlowGroupsData[0]);
+      setLoaders((prev) => ({ ...prev, pieChart4: false }));      
+    }
+    
+    fetchExpenseData();
+    fetchBalanceData();
+    fetchCashFlowFriendsData();
+    fetchCashFlowGroupsData();
   }, []); // Runs only on mount
 
   // Fetch monthly expenses (runs when year changes)
   useEffect(() => {
     const fetchMonthlyExpenses = async () => {
-      try {
-        const [monthlyExpensesData] = await Promise.all([getMonthlyExpenses(year)]);
+      const [monthlyExpensesData] = await getMonthlyExpenses(year);
+      if (!monthlyExpensesData) return;
 
-        setBarChartData(monthlyExpensesData[0]);
-        setLoaders((prev) => ({ ...prev, barChart: false }));
-      } catch (error) {
-        toast.error("Error fetching monthly expenses data");
-      }
+      setBarChartData(monthlyExpensesData);
+      setLoaders((prev) => ({ ...prev, barChart: false }));
     };
 
     setLoaders((prev) => ({ ...prev, barChart: true })); // Set loading for BarChart before fetching

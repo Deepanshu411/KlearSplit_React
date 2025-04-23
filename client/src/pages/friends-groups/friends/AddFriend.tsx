@@ -66,10 +66,11 @@ const AddFriend: React.FC<AddFriendProps> = ({ open, handleClose }) => {
 
       try {
         const users = await searchUser(query);
+        if (!users) {
+          setSearchedUsers([]);
+          return;
+        }
         setSearchedUsers(users);
-      } catch (error) {
-        toast.error("Error finding user! Please try later.");
-        setSearchedUsers([]);
       } finally {
         setLoading(false); // Hide loader after fetching
         setSearchCompleted(true);
@@ -102,13 +103,10 @@ const AddFriend: React.FC<AddFriendProps> = ({ open, handleClose }) => {
   };
 
   const handleSubmit = async () => {
-    try {
-      await addFriend(inputValue.trim()); // Send as a string
-      toast.success("Friend added successfully!");
-      handleClose(); // Close dialog on success
-    } catch (error) {
-      toast.error("Failed to add friend. Please try again.");
-    }
+    const res = await addFriend(inputValue.trim()); // Send as a string
+    if (!res) return;
+    toast.success("Friend added successfully!");
+    handleClose(); // Close dialog on success
   };
 
   return (

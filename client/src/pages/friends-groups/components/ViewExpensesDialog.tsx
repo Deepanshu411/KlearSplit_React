@@ -164,8 +164,6 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
           setGroupExpenses(expensesWithPayer);
           setFriendExpenses([]); // Reset friend expenses
         }
-      } catch (error) {
-        toast.error("Failed to load expenses");
       } finally {
         setLoading(false);
       }
@@ -207,8 +205,6 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
         );
       });
       toast.success("Expense deleted successfully");
-    } catch {
-      toast.error("Failed to delete expense");
     } finally {
       setDeleteLoader(null);
     }
@@ -270,8 +266,6 @@ const ViewExpensesDialog: React.FC<ViewExpensesDialogProps> = ({
         );
       });
       toast.success("Expense deleted successfully");
-    } catch {
-      toast.error("Failed to delete expense");
     } finally {
       setDeleteLoader(null);
     }

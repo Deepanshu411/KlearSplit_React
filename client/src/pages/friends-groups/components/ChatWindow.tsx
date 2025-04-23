@@ -12,7 +12,6 @@ import { RootState } from "../../../store";
 import { LinearProgress } from "@mui/material";
 import useScrollToBottom from "../hooks/useScrollToBottom";
 import MessageItem from "./Message";
-import { toast } from "sonner";
 import isFriendsConversation from "../utils/getConversationType";
 import { fetchMessagesExpensesAndSettlements } from "../groups/services";
 import {
@@ -98,42 +97,6 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
   const prevGroupsMessages = useRef(groupMessages ?? []);
   const prevGroupsExpenses = useRef(groupExpenses ?? []);
   const prevCombined = useRef(combinedView ?? []);
-
-  //   useEffect(() => {
-  //     const isFriend = isFriendsConversation(chat!);
-  //     const messageHandler = (message: MessageData | GroupMessageData) => {
-  //       const messageWithTime = {
-  //         ...message,
-  //         createdAt: new Date().toISOString(),
-  //       };
-
-  //       if (isFriend) {
-  //         setMessages && setMessages((prev) => [...prev, messageWithTime as MessageData]);
-  //       } else {
-  //         setGroupMessages && setGroupMessages((prev) => [
-  //           ...prev,
-  //           messageWithTime as GroupMessageData,
-  //         ]);
-  //       }
-
-  //       setCombinedView((prev) => [
-  //         ...prev,
-  //         { ...messageWithTime, type: "message" },
-  //       ]);
-  //     };
-
-  //     if (isFriend) {
-  //       onNewConversationMessage(messageHandler as (m: MessageData) => void);
-  //     } else {
-  //       onNewGroupMessage(messageHandler as (m: GroupMessageData) => void);
-  //     }
-
-  //     return () => {
-  //       console.log("ran")
-  //       removeNewMessageListener();
-  //     };
-  //   },
-  // [onNewConversationMessage]); // more stable than function deps
 
   let content;
 
@@ -342,8 +305,6 @@ const ChatWindow: React.FC<ChatWindowProp> = ({
           }
         });
       }
-    } catch (error) {
-      toast.error("Something went wrong! Please try again later.");
     } finally {
       isFetching.current = false;
       setLoading((prevLoading) => {

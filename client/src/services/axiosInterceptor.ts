@@ -36,7 +36,6 @@ axiosInstance.interceptors.response.use(
         const { response } = error;
 
         if (!response) {
-            toast.error("Network error. Please check your connection.");
             return Promise.reject(error);
         }
 

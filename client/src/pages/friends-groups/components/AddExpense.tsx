@@ -596,109 +596,107 @@ const AddExpense: React.FC<AddExpenseProps> = ({
 
       switch (title) {
         case "Add Expense": {
-          try {
-            const newExpense = await addExpense(chat.conversation_id, formData);
-            newExpense.payer =
-              newExpense.payer_id === user?.user_id
-                ? getFullNameAndImage(user)
-                : getFullNameAndImage(chat.friend);
-            toast.success("Expense added successfully!");
-            if (setExpenses) setExpenses((prev) => [...prev, newExpense]);
-            setCombinedView((prev) => [
-              ...prev,
-              { ...newExpense, type: "expense" },
-            ]);
-            const updatedBalanceAmount = isUserPayer(
-              user?.user_id!,
-              newExpense.payer_id
-            )
-              ? (
-                  parseFloat(chat.balance_amount) +
-                  parseFloat(newExpense.debtor_amount)
-                ).toFixed(2)
-              : (
-                  parseFloat(chat.balance_amount) -
-                  parseFloat(newExpense.debtor_amount)
-                ).toFixed(2);
-            setChats((prev) => {
-              const friendChats = prev as FriendData[];
-              return friendChats.map((c) =>
-                c.conversation_id === chat.conversation_id
-                  ? { ...c, balance_amount: updatedBalanceAmount }
-                  : c
-              );
-            });
-            resetForm();
-            handleAddExpensesClose();
-          } catch (error) {
-            toast.error("Something went wrong please try again later.");
-          } finally {
+          const newExpense = await addExpense(chat.conversation_id, formData);
+          if (!newExpense) {
             setIsSubmitting(false);
+            return;
           }
+          newExpense.payer =
+            newExpense.payer_id === user?.user_id
+              ? getFullNameAndImage(user)
+              : getFullNameAndImage(chat.friend);
+          toast.success("Expense added successfully!");
+          if (setExpenses) setExpenses((prev) => [...prev, newExpense]);
+          setCombinedView((prev) => [
+            ...prev,
+            { ...newExpense, type: "expense" },
+          ]);
+          const updatedBalanceAmount = isUserPayer(
+            user?.user_id!,
+            newExpense.payer_id
+          )
+            ? (
+                parseFloat(chat.balance_amount) +
+                parseFloat(newExpense.debtor_amount)
+              ).toFixed(2)
+            : (
+                parseFloat(chat.balance_amount) -
+                parseFloat(newExpense.debtor_amount)
+              ).toFixed(2);
+          setChats((prev) => {
+            const friendChats = prev as FriendData[];
+            return friendChats.map((c) =>
+              c.conversation_id === chat.conversation_id
+                ? { ...c, balance_amount: updatedBalanceAmount }
+                : c
+            );
+          });
+          resetForm();
+          handleAddExpensesClose();
+          setIsSubmitting(false);
           break;
         }
         case "Update Expense": {
-          try {
-            formData.append(
-              "friend_expense_id",
-              friendExpenseToUpdate?.friend_expense_id!
-            );
-            const updatedExpense = await updateExpense(
-              chat.conversation_id,
-              formData
-            );
-            updatedExpense.payer =
-              updatedExpense.payer_id === user?.user_id
-                ? getFullNameAndImage(user)
-                : getFullNameAndImage(chat.friend);
-            toast.success("Expense updated successfully!");
-            if (setExpenses)
-              setExpenses((prev) =>
-                prev.map((expense) =>
-                  expense.friend_expense_id === updatedExpense.friend_expense_id
-                    ? updatedExpense
-                    : expense
-                )
-              );
-            if (setFriendExpensesView)
-              setFriendExpensesView((prev) =>
-                prev.map((expense) =>
-                  expense.friend_expense_id === updatedExpense.friend_expense_id
-                    ? updatedExpense
-                    : expense
-                )
-              );
-            setCombinedView((prev) =>
-              prev.map((item) => {
-                if (isCombinedExpense(item)) {
-                  return item.friend_expense_id ===
-                    updatedExpense.friend_expense_id
-                    ? { ...updatedExpense, type: "expense" }
-                    : item;
-                }
-                return item;
-              })
-            );
-            const updatedBalanceAmount = updateBalance(
-              chat.balance_amount,
-              parseFloat(updatedExpense.debtor_amount),
-              updatedExpense.payer_id === user?.user_id
-            );
-            setChats((prev) => {
-              const friendChats = prev as FriendData[];
-              return friendChats.map((c) =>
-                c.conversation_id === chat.conversation_id
-                  ? { ...c, balance_amount: updatedBalanceAmount }
-                  : c
-              );
-            });
-            resetForm();
-            handleAddExpensesClose();
-          } catch (error) {
-            toast.error("Something went wrong please try again later.");
-          } finally {
+          formData.append(
+            "friend_expense_id",
+            friendExpenseToUpdate?.friend_expense_id!
+          );
+          const updatedExpense = await updateExpense(
+            chat.conversation_id,
+            formData
+          );
+          if (!updatedExpense) {
             setIsSubmitting(false);
+            return;
           }
+          updatedExpense.payer =
+            updatedExpense.payer_id === user?.user_id
+              ? getFullNameAndImage(user)
+              : getFullNameAndImage(chat.friend);
+          toast.success("Expense updated successfully!");
+          if (setExpenses)
+            setExpenses((prev) =>
+              prev.map((expense) =>
+                expense.friend_expense_id === updatedExpense.friend_expense_id
+                  ? updatedExpense
+                  : expense
+              )
+            );
+          if (setFriendExpensesView)
+            setFriendExpensesView((prev) =>
+              prev.map((expense) =>
+                expense.friend_expense_id === updatedExpense.friend_expense_id
+                  ? updatedExpense
+                  : expense
+              )
+            );
+          setCombinedView((prev) =>
+            prev.map((item) => {
+              if (isCombinedExpense(item)) {
+                return item.friend_expense_id ===
+                  updatedExpense.friend_expense_id
+                  ? { ...updatedExpense, type: "expense" }
+                  : item;
+              }
+              return item;
+            })
+          );
+          const updatedBalanceAmount = updateBalance(
+            chat.balance_amount,
+            parseFloat(updatedExpense.debtor_amount),
+            updatedExpense.payer_id === user?.user_id
+          );
+          setChats((prev) => {
+            const friendChats = prev as FriendData[];
+            return friendChats.map((c) =>
+              c.conversation_id === chat.conversation_id
+                ? { ...c, balance_amount: updatedBalanceAmount }
+                : c
+            );
+          });
+          resetForm();
+          handleAddExpensesClose();
+          setIsSubmitting(false);
         }
       }
     } else {
@@ -757,134 +755,133 @@ const AddExpense: React.FC<AddExpenseProps> = ({
 
       switch (title) {
         case "Add Expense": {
-          try {
-            const newExpense = await addGroupExpense(chat.group_id, formData);
-            const expenseData = newExpense.expense;
-            const expenseParticipants = newExpense.expenseParticipants;
-            const totalDebtAmount = expenseParticipants.reduce(
-              (acc, val) => acc + parseFloat(val.debtor_amount),
-              0
-            );
-            expenseData.total_debt_amount = totalDebtAmount.toFixed(2);
-            expenseData.participants = expenseParticipants;
-            if (expenseData.payer_id === currentMember?.group_membership_id) {
-              expenseData.payer = getFullNameAndImage(currentMember);
-              expenseData.user_debt = (
-                parseFloat(expenseData.total_amount) - totalDebtAmount
-              ).toFixed(2);
-            } else {
-              const payer = chatMembers!.find(
-                (member) => expenseData.payer_id === member.group_membership_id
-              );
-              expenseData.payer = getFullNameAndImage(payer);
-              expenseData.user_debt = expenseParticipants.find(
-                (participant) =>
-                  participant.debtor_id === currentMember?.group_membership_id
-              )!.debtor_amount;
-            }
-            toast.success("Expense added successfully!");
-            setGroupExpenses &&
-              setGroupExpenses((prev) => [...prev, expenseData]);
-            setCombinedView((prev) => [
-              ...prev,
-              { ...expenseData, type: "expense" },
-            ]);
-            const updatedBalanceAmount =
-              groupPayer?.group_membership_id ===
-              currentMember?.group_membership_id
-                ? (
-                    parseFloat(chat!.balance_amount) +
-                    parseFloat(newExpense.expense.total_debt_amount)
-                  ).toFixed(2)
-                : (
-                    parseFloat(chat!.balance_amount) -
-                    parseFloat(newExpense.expense.user_debt)
-                  ).toFixed(2);
-            setChats((prev) => {
-              const groupChats = prev as GroupData[];
-              return groupChats.map((c) =>
-                c.group_id === chat?.group_id
-                  ? { ...c, balance_amount: updatedBalanceAmount }
-                  : c
-              );
-            });
-            setGroupMembers &&
-              setGroupMembers((prev: GroupMemberData[]) => {
-                return prev.map((member) => {
-                  if (member.deletedAt) return member;
-                  const isCurrentMember =
-                    member.group_membership_id ===
-                    currentMember?.group_membership_id;
-                  const isCurrentMemberPayer =
-                    currentMember?.group_membership_id ===
-                    groupPayer?.group_membership_id;
-                  if (
-                    member.group_membership_id ===
-                    groupPayer?.group_membership_id
-                  ) {
-                    // Calculate the new balance for the payer
-                    const balanceWithUser = expenseParticipants.find(
-                      (participant) =>
-                        participant.debtor_id ===
-                        currentMember?.group_membership_id
-                    )?.debtor_amount;
-                    const newBalanceWithUser = !isCurrentMember
-                      ? (
-                          parseFloat(member.balance_with_user) +
-                          parseFloat(balanceWithUser ?? "0")
-                        ).toFixed(2)
-                      : "0.00";
-                    const newTotalBalance = (
-                      parseFloat(member.total_balance) +
-                      parseFloat(expenseData.total_debt_amount)
-                    ).toFixed(2);
-                    // Update balance_with_user for the payer
-                    return {
-                      ...member,
-                      balance_with_user: newBalanceWithUser,
-                      total_balance: newTotalBalance,
-                    };
-                  }
-                  // Find the participant in the expenseParticipants array
-                  // that matches the current member's group_membership_id
-                  // and is a debtor
-                  const participant = expenseParticipants.find(
-                    (participant) =>
-                      participant.debtor_id === member.group_membership_id
-                  );
-
-                  if (participant) {
-                    // Calculate the new balance for the member based on debtor_amount
-                    const newBalanceWithUser = isCurrentMemberPayer
-                      ? (
-                          parseFloat(member.balance_with_user) -
-                          parseFloat(participant.debtor_amount)
-                        ).toFixed(2)
-                      : member.balance_with_user;
-                    const newTotalBalance = (
-                      parseFloat(member.total_balance) -
-                      parseFloat(participant.debtor_amount)
-                    ).toFixed(2);
-
-                    // Update balance_with_user for the debtor
-                    return {
-                      ...member,
-                      balance_with_user: newBalanceWithUser,
-                      total_balance: newTotalBalance,
-                    };
-                  }
-
-                  // If the member is not a participant (not a debtor), no change
-                  return member;
-                });
-              });
-            resetForm();
-            handleAddExpensesClose();
-          } catch (error) {
-            toast.error("Something went wrong please try again later.");
-          } finally {
+          const newExpense = await addGroupExpense(chat.group_id, formData);
+          if (!newExpense) {
             setIsSubmitting(false);
+            return;
           }
+          const expenseData = newExpense.expense;
+          const expenseParticipants = newExpense.expenseParticipants;
+          const totalDebtAmount = expenseParticipants.reduce(
+            (acc, val) => acc + parseFloat(val.debtor_amount),
+            0
+          );
+          expenseData.total_debt_amount = totalDebtAmount.toFixed(2);
+          expenseData.participants = expenseParticipants;
+          if (expenseData.payer_id === currentMember?.group_membership_id) {
+            expenseData.payer = getFullNameAndImage(currentMember);
+            expenseData.user_debt = (
+              parseFloat(expenseData.total_amount) - totalDebtAmount
+            ).toFixed(2);
+          } else {
+            const payer = chatMembers!.find(
+              (member) => expenseData.payer_id === member.group_membership_id
+            );
+            expenseData.payer = getFullNameAndImage(payer);
+            expenseData.user_debt = expenseParticipants.find(
+              (participant) =>
+                participant.debtor_id === currentMember?.group_membership_id
+            )!.debtor_amount;
+          }
+          toast.success("Expense added successfully!");
+          setGroupExpenses &&
+            setGroupExpenses((prev) => [...prev, expenseData]);
+          setCombinedView((prev) => [
+            ...prev,
+            { ...expenseData, type: "expense" },
+          ]);
+          const updatedBalanceAmount =
+            groupPayer?.group_membership_id ===
+            currentMember?.group_membership_id
+              ? (
+                  parseFloat(chat!.balance_amount) +
+                  parseFloat(newExpense.expense.total_debt_amount)
+                ).toFixed(2)
+              : (
+                  parseFloat(chat!.balance_amount) -
+                  parseFloat(newExpense.expense.user_debt)
+                ).toFixed(2);
+          setChats((prev) => {
+            const groupChats = prev as GroupData[];
+            return groupChats.map((c) =>
+              c.group_id === chat?.group_id
+                ? { ...c, balance_amount: updatedBalanceAmount }
+                : c
+            );
+          });
+          setGroupMembers &&
+            setGroupMembers((prev: GroupMemberData[]) => {
+              return prev.map((member) => {
+                if (member.deletedAt) return member;
+                const isCurrentMember =
+                  member.group_membership_id ===
+                  currentMember?.group_membership_id;
+                const isCurrentMemberPayer =
+                  currentMember?.group_membership_id ===
+                  groupPayer?.group_membership_id;
+                if (
+                  member.group_membership_id ===
+                  groupPayer?.group_membership_id
+                ) {
+                  // Calculate the new balance for the payer
+                  const balanceWithUser = expenseParticipants.find(
+                    (participant) =>
+                      participant.debtor_id ===
+                      currentMember?.group_membership_id
+                  )?.debtor_amount;
+                  const newBalanceWithUser = !isCurrentMember
+                    ? (
+                        parseFloat(member.balance_with_user) +
+                        parseFloat(balanceWithUser ?? "0")
+                      ).toFixed(2)
+                    : "0.00";
+                  const newTotalBalance = (
+                    parseFloat(member.total_balance) +
+                    parseFloat(expenseData.total_debt_amount)
+                  ).toFixed(2);
+                  // Update balance_with_user for the payer
+                  return {
+                    ...member,
+                    balance_with_user: newBalanceWithUser,
+                    total_balance: newTotalBalance,
+                  };
+                }
+                // Find the participant in the expenseParticipants array
+                // that matches the current member's group_membership_id
+                // and is a debtor
+                const participant = expenseParticipants.find(
+                  (participant) =>
+                    participant.debtor_id === member.group_membership_id
+                );
+
+                if (participant) {
+                  // Calculate the new balance for the member based on debtor_amount
+                  const newBalanceWithUser = isCurrentMemberPayer
+                    ? (
+                        parseFloat(member.balance_with_user) -
+                        parseFloat(participant.debtor_amount)
+                      ).toFixed(2)
+                    : member.balance_with_user;
+                  const newTotalBalance = (
+                    parseFloat(member.total_balance) -
+                    parseFloat(participant.debtor_amount)
+                  ).toFixed(2);
+
+                  // Update balance_with_user for the debtor
+                  return {
+                    ...member,
+                    balance_with_user: newBalanceWithUser,
+                    total_balance: newTotalBalance,
+                  };
+                }
+
+                // If the member is not a participant (not a debtor), no change
+                return member;
+              });
+            });
+          resetForm();
+          handleAddExpensesClose();
+          setIsSubmitting(false);
           break;
         }
         case "Update Expense": {
@@ -894,86 +891,85 @@ const AddExpense: React.FC<AddExpenseProps> = ({
             "group_expense_id",
             groupExpenseToUpdate?.group_expense_id!
           );
-          try {
-            const updatedExpense = await updateGroupExpense(
-              chat.group_id,
-              formData
+          const updatedExpense = await updateGroupExpense(
+            chat.group_id,
+            formData
+          );
+          if (!updatedExpense) {
+            setIsSubmitting(false);
+            return;
+          }
+          const expenseData = updatedExpense.expense;
+          const expenseParticipants = updatedExpense.expenseParticipants;
+          const totalDebtAmount = expenseParticipants.reduce(
+            (acc, val) => acc + parseFloat(val.debtor_amount),
+            0
+          );
+          expenseData.total_debt_amount = totalDebtAmount.toFixed(2);
+          expenseData.participants = expenseParticipants;
+          if (expenseData.payer_id === currentMember?.group_membership_id) {
+            expenseData.payer = getFullNameAndImage(currentMember);
+            expenseData.user_debt = (
+              parseFloat(expenseData.total_amount) - totalDebtAmount
+            ).toFixed(2);
+          } else {
+            const payer = chatMembers!.find(
+              (member) => expenseData.payer_id === member.group_membership_id
             );
-            const expenseData = updatedExpense.expense;
-            const expenseParticipants = updatedExpense.expenseParticipants;
-            const totalDebtAmount = expenseParticipants.reduce(
-              (acc, val) => acc + parseFloat(val.debtor_amount),
-              0
-            );
-            expenseData.total_debt_amount = totalDebtAmount.toFixed(2);
-            expenseData.participants = expenseParticipants;
-            if (expenseData.payer_id === currentMember?.group_membership_id) {
-              expenseData.payer = getFullNameAndImage(currentMember);
-              expenseData.user_debt = (
-                parseFloat(expenseData.total_amount) - totalDebtAmount
-              ).toFixed(2);
-            } else {
-              const payer = chatMembers!.find(
-                (member) => expenseData.payer_id === member.group_membership_id
-              );
-              expenseData.payer = getFullNameAndImage(payer);
-              expenseData.user_debt =
-                expenseParticipants.find(
-                  (participant) =>
-                    participant.debtor_id === currentMember?.group_membership_id
-                )?.debtor_amount ?? "0.00";
-            }
-            toast.success("Expense updated successfully!");
-            setGroupExpenses &&
-              setGroupExpenses((prev) =>
-                prev.map((expense) =>
-                  isGroupExpense(expense) &&
-                  expense.group_expense_id === expenseData.group_expense_id
-                    ? expenseData
-                    : expense
-                )
-              );
-            setGroupExpensesView &&
-              setGroupExpensesView((prev) =>
-                prev.map((expense) =>
-                  isGroupExpense(expense) &&
-                  expense.group_expense_id === expenseData.group_expense_id
-                    ? expenseData
-                    : expense
-                )
-              );
-            setCombinedView((prev) =>
-              prev.map((item) =>
-                isCombinedGroupExpense(item) &&
-                item.group_expense_id === expenseData.group_expense_id
-                  ? { ...expenseData, type: "expense" }
-                  : item
+            expenseData.payer = getFullNameAndImage(payer);
+            expenseData.user_debt =
+              expenseParticipants.find(
+                (participant) =>
+                  participant.debtor_id === currentMember?.group_membership_id
+              )?.debtor_amount ?? "0.00";
+          }
+          toast.success("Expense updated successfully!");
+          setGroupExpenses &&
+            setGroupExpenses((prev) =>
+              prev.map((expense) =>
+                isGroupExpense(expense) &&
+                expense.group_expense_id === expenseData.group_expense_id
+                  ? expenseData
+                  : expense
               )
             );
-            const updatedBalanceAmount = updateBalance(
-              chat.balance_amount,
-              isCurrentMemberPayer
-                ? parseFloat(groupExpenseToUpdate.total_amount) -
-                    parseFloat(groupExpenseToUpdate.total_debt_amount)
-                : parseFloat(groupExpenseToUpdate.user_debt),
-              groupExpenseToUpdate.payer_id ===
-                currentMember?.group_membership_id
+          setGroupExpensesView &&
+            setGroupExpensesView((prev) =>
+              prev.map((expense) =>
+                isGroupExpense(expense) &&
+                expense.group_expense_id === expenseData.group_expense_id
+                  ? expenseData
+                  : expense
+              )
             );
-            setChats((prev) => {
-              const groupChats = prev as GroupData[];
-              return groupChats.map((c) =>
-                c.group_id === chat?.group_id
-                  ? { ...c, balance_amount: updatedBalanceAmount }
-                  : c
-              );
-            });
-            resetForm();
-            handleAddExpensesClose();
-          } catch (error) {
-            toast.error("Something went wrong please try again later.");
-          } finally {
-            setIsSubmitting(false);
-          }
+          setCombinedView((prev) =>
+            prev.map((item) =>
+              isCombinedGroupExpense(item) &&
+              item.group_expense_id === expenseData.group_expense_id
+                ? { ...expenseData, type: "expense" }
+                : item
+            )
+          );
+          const updatedBalanceAmount = updateBalance(
+            chat.balance_amount,
+            isCurrentMemberPayer
+              ? parseFloat(groupExpenseToUpdate.total_amount) -
+                  parseFloat(groupExpenseToUpdate.total_debt_amount)
+              : parseFloat(groupExpenseToUpdate.user_debt),
+            groupExpenseToUpdate.payer_id ===
+              currentMember?.group_membership_id
+          );
+          setChats((prev) => {
+            const groupChats = prev as GroupData[];
+            return groupChats.map((c) =>
+              c.group_id === chat?.group_id
+                ? { ...c, balance_amount: updatedBalanceAmount }
+                : c
+            );
+          });
+          resetForm();
+          handleAddExpensesClose();
+          setIsSubmitting(false);
           break;
         }
       }

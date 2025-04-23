@@ -88,27 +88,24 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
         formData.append("group", JSON.stringify(groupDetails));
         formData.append("membersData", JSON.stringify(membersData));
         if (image) formData.append("image", image);
-        try {
-          const group = await createGroup(formData);
-          toast.success("Group created successfully");
-          if (setGroups) {
-            setGroups((prevGroups) => [
-              {
-                ...group,
-                status: "ACCEPTED",
-                role: "CREATOR",
-                has_archived: false,
-                has_blocked: false,
-                balance_amount: "0",
-              } as GroupData,
-              ...prevGroups,
-            ]);
-          }
-          // Optionally, you can also close the dialog here
-          handleClose();
-        } catch {
-          toast.error("Failed to create group");
+        const group = await createGroup(formData);
+        if (!group) return;
+        toast.success("Group created successfully");
+        if (setGroups) {
+          setGroups((prevGroups) => [
+            {
+              ...group,
+              status: "ACCEPTED",
+              role: "CREATOR",
+              has_archived: false,
+              has_blocked: false,
+              balance_amount: "0",
+            } as GroupData,
+            ...prevGroups,
+          ]);
         }
+        // Optionally, you can also close the dialog here
+        handleClose();
         // Reset state after submission
         setGroupName("");
         setGroupDescription("");
@@ -128,37 +125,34 @@ const CreateGroup: React.FC<CreateGroupProps> = ({
           image,
         });
 
-        try {
-          const updatedGroup = await updateGroup(
-            selectedGroup!.group_id,
-            updateFormData
-          );
-          setGroups &&
-            setGroups((prev) => {
-              return prev.map((c) =>
-                c.group_id === updatedGroup.group_id
-                  ? {
-                      ...updatedGroup,
-                      balance_amount: selectedGroup!.balance_amount,
-                      status: selectedGroup!.status,
-                      role: selectedGroup!.role,
-                      has_blocked: selectedGroup!.has_blocked,
-                    }
-                  : c
-              );
-            });
-          setSelectedGroup!((prev) => ({
-            ...updatedGroup,
-            balance_amount: prev!.balance_amount,
-            status: prev!.status,
-            role: prev!.role,
-            has_blocked: prev!.has_blocked,
-          }));
-          toast.success("Group updated successfully");
-          handleClose();
-        } catch {
-          toast.error("Failed to update group");
-        }
+        const updatedGroup = await updateGroup(
+          selectedGroup!.group_id,
+          updateFormData
+        );
+        if (!updatedGroup) return;
+        setGroups &&
+          setGroups((prev) => {
+            return prev.map((c) =>
+              c.group_id === updatedGroup.group_id
+                ? {
+                    ...updatedGroup,
+                    balance_amount: selectedGroup!.balance_amount,
+                    status: selectedGroup!.status,
+                    role: selectedGroup!.role,
+                    has_blocked: selectedGroup!.has_blocked,
+                  }
+                : c
+            );
+          });
+        setSelectedGroup!((prev) => ({
+          ...updatedGroup,
+          balance_amount: prev!.balance_amount,
+          status: prev!.status,
+          role: prev!.role,
+          has_blocked: prev!.has_blocked,
+        }));
+        toast.success("Group updated successfully");
+        handleClose();
         break;
     }
   };

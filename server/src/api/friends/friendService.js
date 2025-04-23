@@ -700,71 +700,72 @@ class FriendService {
   
   static addBulkExpenses = async(conversationId, userId, req) => {
     const friend = await FriendDb.getFriend(conversationId);
-
     isFriendExist(friend);
     validateConversationPermissions(friend);
-
     let validRows = [];
-    
     const rows = await fileData(req);
-
     const tableName = req.body.tableName;
-
     let processedRows;
-
+    const errorsOccured = [];
     if (rows) {
       // Use Promise.all to wait for all the promises to resolve
       processedRows = await Promise.all(
-        rows.map(async(row) => {
-          const payer = await UserDb.getUserByEmail(row[ "Payer Email ID" ]);
-          const debtor = await UserDb.getUserByEmail(row[ "Debtor Email ID" ]);
-
+        rows.map(async(row, index) => {
+          const payer = await UserDb.getUserByEmail(row[ "Payer Email ID" ].trim());
+          const debtor = await UserDb.getUserByEmail(row[ "Debtor Email ID" ].trim());
           const processedRow = {
-            "expense_name": row.Name,
-            "conversation_id": conversationId,
-            "total_amount": row.Amount,
-            "split_type": row[ "Split Type" ],
+            "expense_name": row.Name.trim(),
+            "conversation_id": conversationId.trim(),
+            "total_amount": row.Amount.trim(),
+            "split_type": row[ "Split Type" ].trim(),
             "payer_id": payer.user_id,
             "debtor_id": debtor.user_id,
-            "participant1_share": row[ "Payer Share" ],
-            "participant2_share": row[ "Debtor Share" ],
-            "debtor_share": row[ "Debtor Share" ]
+            "participant1_share": row[ "Payer Share" ].trim(),
+            "participant2_share": row[ "Debtor Share" ].trim(),
+            "debtor_share": row[ "Debtor Share" ].trim()
           };
-          
-          const debtorAmount = calculateDebtorAmount(userId, processedRow);
-
+          let debtorAmount;
+          try {
+            debtorAmount = calculateDebtorAmount(processedRow);
+          } catch (error) {
+            errorsOccured.push({
+              "row": index + 1,
+              "errors": error.message
+            });
+          }
           Object.assign(processedRow, { "debtor_amount": debtorAmount });
-
           // Prevent self-expenses
           if (processedRow.payer_id === processedRow.debtor_id) {
-            throw new ErrorHandler(400, "You cannot add an expense with yourself");
+            errorsOccured.push({
+              "row": index + 1,
+              "errors": "You cannot add an expense with yourself"
+            });
           }
-
           // Verify that the payer is part of the conversation
           if (
             processedRow.payer_id !== friend.friend1_id && processedRow.payer_id !== friend.friend2_id
           ) {
-            throw new ErrorHandler(403, "You are not allowed to add expense in this chat.");
+            errorsOccured.push({
+              "row": index + 1,
+              "errors": "You are not allowed to add expense in this chat."
+            });
           }
-
           return processedRow;
         })
       );
+      if (errorsOccured.length) {
+        throw new ErrorHandler(400, errorsOccured);
+      }
       validRows = await validateBulkData(processedRows, tableName);
     }
-    
     let expenses;
-
     if (validRows.length === rows.length) {
       const transaction = await sequelize.transaction();
-
       try {
         expenses = await FriendDb.bulkAddExpenses(validRows, transaction);
         expenses.forEach((expense) => {
           let balanceAmount = parseFloat(friend.balance_amount);
-
-          balanceAmount += expense.payer_id === friend.friend1_id ? parseFloat(expense.debtor_amount) : -parseFloat(expense.debtor_amount);
-
+          balanceAmount += (expense.payer_id === friend.friend1_id) ? parseFloat(expense.debtor_amount) : -parseFloat(expense.debtor_amount);
           Object.assign(friend, { "balance_amount": balanceAmount });
         });
         await friend.save({ transaction });

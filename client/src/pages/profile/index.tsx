@@ -184,6 +184,7 @@ const Profile = () => {
 
     if (hasErrors || (!isDirty && !selectedFile)) {
       toast.warning("Invalid Details");
+      setIsSaveChangesDisabled(true);
       return;
     }
     setProfileUpdateLoader(true);
@@ -202,22 +203,19 @@ const Profile = () => {
 
     try {
       const updatedUser = await updateUser(user!.user_id, formData);
-      if (updatedUser) {
-        toast.success("Updated Profile Successfully");
-      }
+      if (!updatedUser) return;
+      toast.success("Updated Profile Successfully");
       setProfileInfo({
-        first_name: updatedUser.first_name,
-        last_name: updatedUser.last_name ?? "",
-        email: updatedUser.email,
-        phone: updatedUser.phone,
+        first_name: updatedUser[0].first_name,
+        last_name: updatedUser[0].last_name ?? "",
+        email: updatedUser[0].email,
+        phone: updatedUser[0].phone,
       });
-      dispatch(login(updatedUser));
-    } catch (error) {
-      toast.error("Error Updating Profile");
+      dispatch(login(updatedUser[0]));
+      setIsSaveChangesDisabled(true);
     } finally {
       setProfileUpdateLoader(false);
       setSelectedFile(null);
-      setIsSaveChangesDisabled(true);
       setErrors({
         first_name: "",
         last_name: "",
@@ -234,16 +232,13 @@ const Profile = () => {
     formData.append("new_password", passwords.newPassword);
     try {
       const updatedUser = await updateUser(user!.user_id, formData);
-      if (updatedUser) {
-        toast.success("Updated Password Successfully");
-      }
+      if (!updatedUser) return;
+      toast.success("Updated Password Successfully");
       setPasswords({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
-    } catch (error) {
-      toast.error("Error Updating Password");
     } finally {
       setProfileUpdateLoader(false);
       setIsChangePasswordDisabled(true);
@@ -308,7 +303,7 @@ const Profile = () => {
               onClick={() => fileInputRef.current?.click()}
             >
               <Avatar
-                src={previewImage || user?.image_url || "/profile.png"}
+                src={previewImage ?? user?.image_url ?? "/profile.png"}
                 alt={user?.first_name}
                 sx={{ width: 120, height: 120 }}
               />
@@ -371,6 +366,7 @@ const Profile = () => {
               required
               variant="outlined"
               name="email"
+              disabled
               value={profileInfo.email}
               onChange={(e) => onChange("email", e.target.value)}
               onBlur={(e) => onChange("email", e.target.value.trim())}

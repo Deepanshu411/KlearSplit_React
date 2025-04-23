@@ -144,13 +144,6 @@ const BulkInsert: React.FC<BulkInsertionProps> = ({
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
-    } catch (err: any) {
-      const message = err?.response?.data?.message;
-      if (Array.isArray(message)) {
-        setErrorArray(message);
-      } else {
-        toast.error(message || "Something went wrong");
-      }
     } finally {
       setLoading(false);
     }

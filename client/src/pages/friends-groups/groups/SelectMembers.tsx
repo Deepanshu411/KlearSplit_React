@@ -66,8 +66,6 @@ const SelectMembersDialog: React.FC<Props> = ({
       try {
         const results = await searchUser(q, true);
         setSearchResults(results);
-      } catch (err) {
-        setSearchResults([]);
       } finally {
         setLoading(false);
       }

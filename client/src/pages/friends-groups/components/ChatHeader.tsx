@@ -100,60 +100,53 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   const handleCloseAddMembers = () => setOpenAddMembers(false);
 
   const handleClickBlock = async () => {
-    try {
-      if (parseFloat(chat?.balance_amount!) !== 0) {
-        toast.warning("Please settle up before this action");
+    if (parseFloat(chat?.balance_amount!) !== 0) {
+      toast.warning("Please settle up before this action");
+      return;
+    }
+    if (isFriendsConversation(chat!)) {
+      const res = await archiveBlockFriend(chat?.conversation_id!, "blocked");
+      if (!res) return;
+      setBlockStatus &&
+        setBlockStatus(blockStatus === "BLOCK" ? "UNBLOCK" : "BLOCK");
+      toast.success(`Conversation ${blockStatus}ED successfully`);
+    } else {
+      if (typeof blockStatusGroups === "undefined" || !setBlockStatusGroups)
         return;
-      }
-      if (isFriendsConversation(chat!)) {
-        await archiveBlockFriend(chat?.conversation_id!, "blocked");
-        setBlockStatus &&
-          setBlockStatus(blockStatus === "BLOCK" ? "UNBLOCK" : "BLOCK");
-        toast.success(`Conversation ${blockStatus}ED successfully`);
-      } else {
-        if (typeof blockStatusGroups === "undefined" || !setBlockStatusGroups)
-          return;
-        await blockGroup(chat?.group_id!, !blockStatusGroups);
-        setBlockStatusGroups && setBlockStatusGroups(!blockStatusGroups);
-        toast.success(
-          `Conversation ${
-            !blockStatusGroups ? "BLOCKED" : "UNBLOCKED"
-          } successfully`
-        );
-      }
-    } catch {
-      toast.error("Error Blocking Conversation! Please try again later.");
+      const res = await blockGroup(chat?.group_id!, !blockStatusGroups);
+      if (!res) return;
+      setBlockStatusGroups && setBlockStatusGroups(!blockStatusGroups);
+      toast.success(
+        `Conversation ${
+          !blockStatusGroups ? "BLOCKED" : "UNBLOCKED"
+        } successfully`
+      );
     }
   };
 
   const handleClickArchive = async () => {
-    try {
-      if (isFriendsConversation(chat!))
-        await archiveBlockFriend(chat?.conversation_id!, "archived");
-      setArchiveStatus(archiveStatus === "ARCHIVE" ? "UNARCHIVE" : "ARCHIVE");
-      toast.success(`Conversation ${archiveStatus}D successfully`);
-    } catch {
-      toast.error("Error Archiving Conversation! Please try again later.");
-    }
+    if (!isFriendsConversation(chat!)) return;
+    const res = await archiveBlockFriend(chat?.conversation_id!, "archived");
+    if (!res) return;
+    setArchiveStatus(archiveStatus === "ARCHIVE" ? "UNARCHIVE" : "ARCHIVE");
+    toast.success(`Conversation ${archiveStatus}D successfully`);
   };
 
   const handleClickLeaveGroup = async () => {
-    try {
-      if (parseFloat(chat?.balance_amount!) !== 0) {
-        toast.warning("Please settle up before this action");
-        return;
-      }
-      await leaveGroup((chat as GroupData).group_id);
-      setChats((prev) => {
-        const groupChats = prev as GroupData[];
-        return groupChats.filter(
-          (group) => group.group_id !== (chat as GroupData).group_id
-        );
-      });
-      toast.success("Group Left Successfully!");
-    } catch {
-      toast.error("Something went wrong, please try again later!");
+    if (isFriendsConversation(chat!)) return;
+    if (parseFloat(chat?.balance_amount!) !== 0) {
+      toast.warning("Please settle up before this action");
+      return;
     }
+    const res = await leaveGroup((chat as GroupData).group_id);
+    if (!res) return;
+    setChats((prev) => {
+      const groupChats = prev as GroupData[];
+      return groupChats.filter(
+        (group) => group.group_id !== (chat as GroupData).group_id
+      );
+    });
+    toast.success("Group Left Successfully!");
   };
 
   const handleMenuClick = (option: string) => {

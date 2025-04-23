@@ -7,11 +7,12 @@ import CreateGroup from "../groups/CreateGroup";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
+  chat: FriendData | GroupData;
   chats: FriendData[] | GroupData[];
   setChats: React.Dispatch<React.SetStateAction<FriendData[] | GroupData[]>>;
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ onSearch, chats, setChats }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ onSearch, chat, chats, setChats }) => {
   const [openAddFriend, setOpenAddFriend] = useState(false);
   const [openCreateGroup, setOpenCreateGroup] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,6 +65,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, chats, setChats }) => {
       <AddFriend open={openAddFriend} handleClose={handleCloseAddFriendDialog} />
       <CreateGroup
         open={openCreateGroup}
+        chat={chat}
         handleClose={handleCloseCreateGroupDialog}
         setGroups={isFriendsConversations(chats) ? undefined : (setChats as React.Dispatch<React.SetStateAction<GroupData[]>>)}
         title="Create Group"

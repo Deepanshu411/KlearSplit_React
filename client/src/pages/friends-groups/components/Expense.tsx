@@ -30,9 +30,6 @@ const ExpenseItem: React.FC<ExpenseItemProp> = ({
 }) => {
   const startsWithPrefix = (id: string, prefix: string) =>
     id.startsWith(prefix);
-  const onRetryExpenseAddition = (id: string) => {
-    console.log(id);
-  };
   return (
     <li
       className={`flex w-full mb-1 px-2 ${
@@ -62,7 +59,6 @@ const ExpenseItem: React.FC<ExpenseItemProp> = ({
           <div className="flex items-center justify-around p-3 w-[20vw] h-[12vh] lg:w-[15vw] lg:h-[10vh] text-black bg-red-400 rounded-2xl">
             <button
               className="btn btn-sm"
-              onClick={() => onRetryExpenseAddition(expense.expense_id)}
             >
               Retry
               <svg

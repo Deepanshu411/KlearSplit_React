@@ -155,8 +155,6 @@ const Settlement: React.FC<SettlementProps> = ({
         );
         window.location.href = response;
       }
-    } catch (error) {
-      toast.error("Something went wrong please try again later.");
     } finally {
       setPaypalLoader(false);
       handleSettlementClose();
@@ -195,8 +193,6 @@ const Settlement: React.FC<SettlementProps> = ({
           );
         });
         handleSettlementClose();
-      } catch (error) {
-        toast.error("Something went wrong please try again later.");
       } finally {
         setPaymentLoader(false);
       }
@@ -273,8 +269,6 @@ const Settlement: React.FC<SettlementProps> = ({
             });
           });
         handleSettlementClose();
-      } catch (error) {
-        toast.error("Something went wrong please try again later.");
       } finally {
         setPaymentLoader(false);
       }
